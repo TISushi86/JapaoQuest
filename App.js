@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as SQLite from 'expo-sqlite';
 import { Asset } from 'expo-asset';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -31,6 +31,11 @@ export default function App() {
 
   useEffect(() => {
     async function loadDatabase() {
+      if (Platform.OS === 'web') {
+        setDbLoaded(true);
+        return;
+      }
+
       const dbName = 'japaoquest.db';
       const dbAsset = require('./src/assets/japaoquest.db');
       const dbUri = Asset.fromModule(dbAsset).uri;
@@ -43,7 +48,6 @@ export default function App() {
       if (!fileInfo.exists) {
         needsCopy = true;
       } else {
-        // Verifica se a versão do banco mudou
         try {
           const versionInfo = await FileSystem.getInfoAsync(versionPath);
           if (versionInfo.exists) {

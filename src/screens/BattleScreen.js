@@ -4,7 +4,7 @@ import {
   ImageBackground, Animated,
 } from 'react-native';
 import RankUpModal from '../components/RankUpModal';
-import * as SQLite from 'expo-sqlite';
+import { getDB } from '../utils/dbAdapter';
 import { usePlayer } from '../context/PlayerContext';
 
 const ENEMY_MAX_HP = 3;
@@ -22,12 +22,6 @@ const LEVEL_FALLBACK = {
   N3: ['N3', 'N4', 'N2'],
   N2: ['N2', 'N3', 'N1'],
   N1: ['N1', 'N2', 'N3'],
-};
-
-let _db = null;
-const getDB = () => {
-  if (!_db) _db = SQLite.openDatabaseSync('japaoquest.db');
-  return _db;
 };
 
 // ─── Barra de HP ──────────────────────────────────────────────────────────────
