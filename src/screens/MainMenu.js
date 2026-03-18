@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ImageBackground, Image, Alert, ActivityIndicator,
-  Modal, Switch,
+  Modal, Switch, ScrollView, Dimensions,
 } from 'react-native';
 import { usePlayer } from '../context/PlayerContext';
 
@@ -217,24 +217,34 @@ const MainMenu = ({ navigation }) => {
           activeOpacity={1}
           onPress={() => setShowOptions(false)}
         >
-          <View style={styles.optionsModal} onStartShouldSetResponder={() => true}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => {}}
+            style={[styles.optionsModal, { maxHeight: Dimensions.get('window').height - 80 }]}
+          >
             <Text style={styles.optionsTitle}>⚙️ Opções</Text>
-            <View style={styles.optionRow}>
-              <View style={styles.optionTextWrap}>
-                <Text style={styles.optionLabel}>Modo Desenvolvedor</Text>
-                <Text style={styles.optionDesc}>Acesso total a lições e mini-games</Text>
+            <ScrollView
+              style={styles.optionsScroll}
+              showsVerticalScrollIndicator={true}
+              bounces={false}
+            >
+              <View style={styles.optionRow}>
+                <View style={styles.optionTextWrap}>
+                  <Text style={styles.optionLabel}>Modo Desenvolvedor</Text>
+                  <Text style={styles.optionDesc}>Acesso total a lições e mini-games</Text>
+                </View>
+                <Switch
+                  value={devMode}
+                  onValueChange={async (v) => await toggleDevMode(v)}
+                  trackColor={{ false: '#444', true: '#ffd70044' }}
+                  thumbColor={devMode ? '#ffd700' : '#888'}
+                />
               </View>
-              <Switch
-                value={devMode}
-                onValueChange={async (v) => await toggleDevMode(v)}
-                trackColor={{ false: '#444', true: '#ffd70044' }}
-                thumbColor={devMode ? '#ffd700' : '#888'}
-              />
-            </View>
+            </ScrollView>
             <TouchableOpacity style={styles.optionsCloseBtn} onPress={() => setShowOptions(false)}>
               <Text style={styles.optionsCloseText}>Fechar</Text>
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
     </View>
@@ -406,6 +416,7 @@ const styles = StyleSheet.create({
     borderColor: '#ffd70033',
   },
   optionsTitle: { color: '#ffd700', fontSize: 22, fontWeight: 'bold', marginBottom: 20 },
+  optionsScroll: { maxHeight: 200 },
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
