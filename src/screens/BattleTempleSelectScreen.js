@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   backBtnText: { color: '#90caf9', fontSize: 14 },
   title: { color: '#ffd700', fontSize: 20, fontWeight: 'bold', letterSpacing: 1 },
   subtitle: { color: '#888', fontSize: 13, marginTop: 2 },
-  scroll: { flex: 1, padding: 16, paddingBottom: 32 },
+  scroll: { flex: 1, minHeight: 0, padding: 16, paddingBottom: 32 },
   section: {
     borderLeftWidth: 4,
     paddingLeft: 12,

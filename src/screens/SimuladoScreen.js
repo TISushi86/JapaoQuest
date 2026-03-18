@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   backBtn: { color: '#90caf9', fontSize: 16 },
   title: { color: '#fff', fontSize: 24, fontWeight: 'bold', marginTop: 12 },
   subtitle: { color: '#aaa', fontSize: 14, marginTop: 4 },
-  levelList: { flex: 1 },
+  levelList: { flex: 1, minHeight: 0 },
   levelListContent: { padding: 16, paddingBottom: 40 },
   levelCard: {
     backgroundColor: '#16213e',
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   examTitle: { fontSize: 20, fontWeight: 'bold', marginTop: 8 },
   errorText: { color: '#f44336', padding: 20 },
 
-  quizContainer: { flex: 1 },
+  quizContainer: { flex: 1, minHeight: 0 },
   quizHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12 },
   sectionLabel: { color: '#90caf9', fontSize: 14, fontWeight: '600' },
   questionCounter: { color: '#888', fontSize: 14 },

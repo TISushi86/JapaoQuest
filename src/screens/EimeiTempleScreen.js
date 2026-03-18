@@ -340,7 +340,7 @@ export default function EimeiTempleScreen({ navigation }) {
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0d0a06' },
-  scroll:    { flex: 1 },
+  scroll:    { flex: 1, minHeight: 0 },
 
   // ── Header
   header: {

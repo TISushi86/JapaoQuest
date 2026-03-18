@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Platform } from 'react-native';
+import { Platform, View, Text, ActivityIndicator } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Asset } from 'expo-asset';
-import { View, Text, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import MainMenu from './src/screens/MainMenu';
@@ -28,6 +27,23 @@ const DB_VERSION = '3';
 
 export default function App() {
   const [dbLoaded, setDbLoaded] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const style = document.createElement('style');
+      style.textContent = `
+        html, body, #root, #root > div { height: 100%; margin: 0; }
+        #root, #root > div { display: flex; flex-direction: column; overflow: hidden; }
+        div[style*="overflow"] { 
+          overflow: auto !important; 
+          -webkit-overflow-scrolling: touch !important; 
+          touch-action: pan-y !important;
+        }
+      `;
+      document.head.appendChild(style);
+      return () => { if (style.parentNode) document.head.removeChild(style); };
+    }
+  }, []);
 
   useEffect(() => {
     async function loadDatabase() {
@@ -88,8 +104,11 @@ export default function App() {
     );
   }
 
+  const RootWrapper = Platform.OS === 'web' ? View : GestureHandlerRootView;
+  const rootStyle = { flex: 1, minHeight: '100vh' };
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <RootWrapper style={rootStyle}>
       <PlayerProvider>
         <ConquestModalLayer />
         <NavigationContainer>
@@ -108,6 +127,6 @@ export default function App() {
           </Stack.Navigator>
         </NavigationContainer>
       </PlayerProvider>
-    </GestureHandlerRootView>
+    </RootWrapper>
   );
 }

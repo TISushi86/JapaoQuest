@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Animated, Dimensions, FlatList,
+  ScrollView, Animated, Dimensions, FlatList, Platform,
 } from 'react-native';
 import { getLessonById } from '../data/lessons';
 import { usePlayer } from '../context/PlayerContext';
@@ -451,9 +451,9 @@ const styles = StyleSheet.create({
   progressTrack: { height: 4, backgroundColor: '#333' },
   progressFill:  { height: '100%', borderRadius: 2, transition: 'width 0.3s' },
 
-  // Área do slide
-  slideArea: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
-  slideContent: { flex: 1 },
+  // Área do slide (minHeight: 0 permite scroll em flexbox na web)
+  slideArea: { flex: 1, paddingHorizontal: 16, paddingTop: 16, minHeight: Platform.OS === 'web' ? 0 : undefined },
+  slideContent: { flex: 1, minHeight: Platform.OS === 'web' ? 0 : undefined },
 
   // Sensei / balão de fala
   sensei: { color: '#ffd700', fontSize: 13, fontWeight: 'bold', marginBottom: 6 },

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  FlatList, ImageBackground,
+  FlatList, ImageBackground, Platform,
 } from 'react-native';
 import { LESSONS } from '../data/lessons';
 import { usePlayer } from '../context/PlayerContext';
@@ -76,6 +76,7 @@ export default function LessonsListScreen({ navigation, route }) {
       <FlatList
         data={lessons}
         keyExtractor={item => item.id}
+        style={Platform.OS === 'web' ? { flex: 1, minHeight: 0 } : undefined}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
