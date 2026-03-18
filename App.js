@@ -29,23 +29,6 @@ export default function App() {
   const [dbLoaded, setDbLoaded] = useState(false);
 
   useEffect(() => {
-    if (Platform.OS === 'web') {
-      const style = document.createElement('style');
-      style.textContent = `
-        html, body, #root, #root > div { height: 100%; margin: 0; }
-        #root, #root > div { display: flex; flex-direction: column; overflow: hidden; }
-        div[style*="overflow"] { 
-          overflow: auto !important; 
-          -webkit-overflow-scrolling: touch !important; 
-          touch-action: pan-y !important;
-        }
-      `;
-      document.head.appendChild(style);
-      return () => { if (style.parentNode) document.head.removeChild(style); };
-    }
-  }, []);
-
-  useEffect(() => {
     async function loadDatabase() {
       if (Platform.OS === 'web') {
         setDbLoaded(true);
@@ -113,7 +96,12 @@ export default function App() {
         <ConquestModalLayer />
         <NavigationContainer>
           <StatusBar style="light" />
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Navigator
+            screenOptions={{
+              headerShown: false,
+              cardStyle: Platform.OS === 'web' ? { flex: 1, minHeight: 0 } : { flex: 1 },
+            }}
+          >
             <Stack.Screen name="MainMenu" component={MainMenu} />
             <Stack.Screen name="Prologue" component={PrologueScreen} />
             <Stack.Screen name="KanaRain" component={KanaRainScreen} />
