@@ -29,16 +29,23 @@ function parseFurigana(text) {
 }
 
 /**
- * Renderiza texto japonês com furigana (leitura em hiragana) acima de cada kanji.
+ * Renderiza texto japonês com furigana (leitura em hiragana) acima de cada
+ * kanji. Suporta múltiplas linhas separadas por `\n` (linhas em branco viram
+ * espaço extra entre parágrafos).
+ *
+ * Cada linha é uma row com flexWrap; o container externo é uma coluna,
+ * permitindo que parágrafos fluam verticalmente sem depender da heurística
+ * do flexWrap.
  *
  * Props:
- *  text          – String com marcação {kanji|furigana} e/ou texto puro
- *  fontSize      – Tamanho da fonte principal (padrão: 22)
- *  color         – Cor do texto principal (padrão: '#ffffff')
- *  furiganaColor – Cor do furigana (padrão: '#90caf9')
- *  highlight     – Texto/partícula a destacar em amarelo (ex.: 'は')
+ *  text           – String com marcação {kanji|furigana} e/ou texto puro
+ *  fontSize       – Tamanho da fonte principal (padrão: 22)
+ *  color          – Cor do texto principal (padrão: '#ffffff')
+ *  furiganaColor  – Cor do furigana (padrão: '#90caf9')
+ *  highlight      – Texto/partícula a destacar em amarelo (ex.: 'は')
  *  highlightColor – Cor do destaque (padrão: '#ffd700')
- *  style         – Estilo extra para o contêiner externo
+ *  align          – 'left' | 'center' | 'right' (alinhamento horizontal das linhas)
+ *  style          – Estilo extra para o contêiner externo
  */
 export default function FuriganaText({
   text = '',
@@ -47,10 +54,14 @@ export default function FuriganaText({
   furiganaColor = '#90caf9',
   highlight = null,
   highlightColor = '#ffd700',
+  align = 'left',
   style,
 }) {
-  const parts = parseFurigana(text);
   const furiSize = Math.max(9, Math.round(fontSize * 0.42));
+
+  // Divide o texto em linhas. Linhas vazias (decorrentes de \n\n) são
+  // preservadas como espaçadores verticais para separar parágrafos.
+  const lines = String(text).split('\n');
 
   const renderTextSegment = (content, key) => {
     if (!highlight || !content.includes(highlight)) {
@@ -60,7 +71,6 @@ export default function FuriganaText({
         </Text>
       );
     }
-    // Quebra o segmento no ponto de destaque
     const segments = content.split(highlight);
     return (
       <React.Fragment key={key}>
@@ -71,7 +81,6 @@ export default function FuriganaText({
             )}
             {j < segments.length - 1 && (
               <View style={{ alignItems: 'center' }}>
-                {/* espaço reservado para alinhar com o furigana dos outros elementos */}
                 <Text style={{ fontSize: furiSize, color: 'transparent', lineHeight: furiSize * 1.3 }}>
                   {'　'}
                 </Text>
@@ -86,41 +95,66 @@ export default function FuriganaText({
     );
   };
 
-  return (
-    <View style={[{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end' }, style]}>
-      {parts.map((part, i) => {
-        if (part.type === 'text') {
-          return renderTextSegment(part.content, i);
-        }
+  const renderLine = (lineText, lineIdx) => {
+    // Linha vazia = espaçamento entre parágrafos
+    if (lineText.length === 0) {
+      return <View key={`empty-${lineIdx}`} style={{ height: furiSize * 0.8, width: '100%' }} />;
+    }
+    const parts = parseFurigana(lineText);
+    const justify =
+      align === 'center' ? 'center' :
+      align === 'right'  ? 'flex-end' :
+      'flex-start';
+    return (
+      <View
+        key={`line-${lineIdx}`}
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          alignItems: 'flex-end',
+          justifyContent: justify,
+          width: '100%',
+          marginBottom: 2,
+        }}
+      >
+        {parts.map((part, i) => {
+          if (part.type === 'text') {
+            return renderTextSegment(part.content, `${lineIdx}-${i}`);
+          }
+          const isHighlighted = highlight && part.kanji === highlight;
+          return (
+            <View key={`${lineIdx}-${i}`} style={{ alignItems: 'center', justifyContent: 'flex-end' }}>
+              <Text
+                style={{
+                  fontSize: furiSize,
+                  color: furiganaColor,
+                  textAlign: 'center',
+                  lineHeight: furiSize * 1.4,
+                  minWidth: fontSize,
+                }}
+              >
+                {part.furigana}
+              </Text>
+              <Text
+                style={{
+                  fontSize,
+                  color: isHighlighted ? highlightColor : color,
+                  lineHeight: fontSize * 1.5,
+                  fontWeight: isHighlighted ? 'bold' : 'normal',
+                }}
+              >
+                {part.kanji}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
 
-        // Elemento ruby: furigana acima, kanji abaixo
-        const isHighlighted = highlight && part.kanji === highlight;
-        return (
-          <View key={i} style={{ alignItems: 'center', justifyContent: 'flex-end' }}>
-            <Text
-              style={{
-                fontSize: furiSize,
-                color: furiganaColor,
-                textAlign: 'center',
-                lineHeight: furiSize * 1.4,
-                minWidth: fontSize,
-              }}
-            >
-              {part.furigana}
-            </Text>
-            <Text
-              style={{
-                fontSize,
-                color: isHighlighted ? highlightColor : color,
-                lineHeight: fontSize * 1.5,
-                fontWeight: isHighlighted ? 'bold' : 'normal',
-              }}
-            >
-              {part.kanji}
-            </Text>
-          </View>
-        );
-      })}
+  return (
+    <View style={[{ flexDirection: 'column', alignItems: 'stretch' }, style]}>
+      {lines.map((line, i) => renderLine(line, i))}
     </View>
   );
 }

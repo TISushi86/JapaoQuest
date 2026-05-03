@@ -66,7 +66,7 @@ export const ROOMS = [
         labelPt: 'Estante',
         x: 0.80, y: 0.33,
         reveals:
-          'Uma estante tombada com quatro livros cobertos de cinza. Eimei sussurra em sua mente: "procure o que mostra caminhos...".',
+          'Uma estante tombada com quatro livros cobertos de cinza.\n\nEimei sussurra em sua mente:\n\n"...procure o que mostra caminhos..."',
         puzzle: {
           type: 'readingChoice',
           prompt: 'Qual destes livros é o "mapa"?',
@@ -126,7 +126,7 @@ export const ROOMS = [
         wrongItemMessage: 'Nada acontece.',
         useItemSuccess: 'A chave de bronze gira com um estalo surdo. O baú se abre.',
         reveals:
-          'Dentro do baú, uma tábua gravada:\n\n"{私|わたし}の{子供|こども}：{息子|むすこ}{一人|ひとり}と{娘|むすめ}{一人|ひとり}。{私|わたし}と{妻|つま}。"',
+          'Dentro do baú, uma tábua gravada:\n\n{私|わたし}の{子供|こども}：\n{息子|むすこ}{一人|ひとり} と {娘|むすめ}{一人|ひとり}。\n{私|わたし} と {妻|つま}。\n\n(Meus filhos: um filho e uma filha. Eu e minha esposa.)',
         puzzle: {
           type: 'readingChoice',
           prompt: 'Quantas pessoas há na família descrita?',
@@ -193,7 +193,7 @@ export const ROOMS = [
         initialMessage: 'A janela está rachada. Lá fora, estrelas piscam sobre montanhas distantes. Mas você não sabe a qual direção cada coisa pertence.',
         wrongItemMessage: 'Nada acontece.',
         useItemSuccess:
-          'A agulha da bússola estremece e encontra o norte. Uma voz ecoa:\n\n"O {寺|てら} (templo) fica ao {東|ひがし} (leste). A {家族|かぞく} (família) foi levada ao {北|きた} (norte)."',
+          'A agulha da bússola estremece e encontra o norte.\n\nUma voz ecoa ao seu ouvido:\n\n• O {寺|てら} (templo) fica ao {東|ひがし} — leste.\n• A {家族|かぞく} (família) foi levada ao {北|きた} — norte.',
         puzzle: {
           type: 'direction',
           prompt: 'Toque nas direções: templo primeiro, família depois.',
@@ -238,7 +238,7 @@ export const ROOMS = [
         x: 0.80, y: 0.15,
         ambientOnly: true,
         reveals:
-          'Uma tabuleta de madeira pendurada com um desejo gravado:\n\n「{家族|かぞく}の{幸|しあわ}せ」\n\n(a felicidade da família)\n\nVocê a reconhece. Você mesmo a pendurou aqui, há muito tempo.',
+          'Uma tabuleta de madeira pendurada com um desejo gravado:\n\n「{家族|かぞく}の{幸|しあわ}せ」\n(A felicidade da família)\n\nVocê reconhece a escrita.\n\nVocê mesmo pendurou esta tabuleta aqui, há muito tempo.',
       },
       {
         id: 'hs-lanterna',
@@ -248,7 +248,7 @@ export const ROOMS = [
         x: 0.20, y: 0.15,
         ambientOnly: true,
         reveals:
-          'Uma lanterna de papel há muito apagada. O papel tem escrito:\n\n{夜|よる} (noite).\n\nNão há óleo. Não há utilidade agora — mas você recorda o hábito de acendê-la ao entardecer.',
+          'Uma lanterna de papel há muito apagada.\n\nNo papel, um único kanji:\n\n{夜|よる}  (noite)\n\nNão há óleo no pavio — mas você recorda o hábito de acendê-la ao entardecer, todos os dias.',
       },
 
       // Didáticos: não servem para avançar, mas ensinam kanji e vocabulário.
@@ -261,7 +261,7 @@ export const ROOMS = [
         x: 0.20, y: 0.23,
         ambientOnly: true,
         reveals:
-          'Uma flor de cerejeira seca num vaso rachado. No papel amarelado ao lado:\n\n「{春|はる}が{来|く}る」\n(A primavera chega)\n\n{桜|さくら} = flor de cerejeira. {春|はる} = primavera.\n\nVocê lembra vagamente... alguém esperava as cerejas florirem.',
+          'Uma flor de cerejeira seca num vaso rachado.\n\nNo papel amarelado ao lado, um verso:\n\n「{春|はる}が{来|く}る」\n(A primavera chega)\n\nVocabulário:\n{桜|さくら} — flor de cerejeira\n{春|はる} — primavera\n\nVocê lembra vagamente... alguém esperava as cerejas florirem.',
       },
       {
         id: 'hs-pergaminho',
@@ -271,7 +271,7 @@ export const ROOMS = [
         x: 0.80, y: 0.23,
         ambientOnly: true,
         reveals:
-          'Um pergaminho velho lista os kanas básicos:\n\nあ い う え お\nか き く け こ\nさ し す せ そ\n\nEimei sussurra: "Os fundamentos não se esquecem, mesmo quando tudo arde."',
+          'Um pergaminho velho lista os kanas básicos:\n\nあ  い  う  え  お\nか  き  く  け  こ\nさ  し  す  せ  そ\n\nEimei sussurra em sua mente:\n\n"Os fundamentos não se esquecem, mesmo quando tudo arde."',
       },
       {
         id: 'hs-espelho',
@@ -281,7 +281,7 @@ export const ROOMS = [
         x: 0.20, y: 0.43,
         ambientOnly: true,
         reveals:
-          'Um espelho rachado reflete um rosto que você mal reconhece. Escrito em laca preta na moldura:\n\n「{私|わたし}は{誰|だれ}だ？」\n(Quem sou eu?)\n\n{私|わたし} = eu. {誰|だれ} = quem. {だ} = ser (informal).',
+          'Um espelho rachado reflete um rosto que você mal reconhece.\n\nEscrito em laca preta na moldura:\n\n「{私|わたし}は{誰|だれ}だ？」\n(Quem sou eu?)\n\nVocabulário:\n{私|わたし} — eu\n{誰|だれ} — quem\nだ — ser (forma informal)',
       },
       {
         id: 'hs-furin',
@@ -291,7 +291,7 @@ export const ROOMS = [
         x: 0.80, y: 0.43,
         ambientOnly: true,
         reveals:
-          'Um furin de vidro balança sem vento. No pequeno papel preso:\n\n「{風|かぜ}はやさしい」\n(O vento é gentil)\n\n{風|かぜ} = vento. やさしい = gentil/fácil.\n\nSó os mortos escutam sinos sem vento, dizem na vila.',
+          'Um furin de vidro balança sem vento.\n\nNo pequeno papel preso ao badalo:\n\n「{風|かぜ}はやさしい」\n(O vento é gentil)\n\nVocabulário:\n{風|かぜ} — vento\nやさしい — gentil, suave, fácil\n\nSó os mortos escutam sinos sem vento, dizem na vila.',
       },
     ],
 

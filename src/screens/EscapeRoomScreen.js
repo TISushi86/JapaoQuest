@@ -318,7 +318,8 @@ export default function EscapeRoomScreen({ navigation, route }) {
             fontSize={32}
             color={accent}
             furiganaColor={accent + 'aa'}
-            style={{ justifyContent: 'center', marginBottom: 6 }}
+            align="center"
+            style={{ marginBottom: 6 }}
           />
           <Text style={[styles.introTitle, { color: accent }]}>{room.title}</Text>
           <Text style={styles.introLevel}>JLPT {room.jlptLevel}</Text>
@@ -479,7 +480,7 @@ export default function EscapeRoomScreen({ navigation, route }) {
               style={[styles.cardBtn, { backgroundColor: accent + '22', borderColor: accent, alignSelf: 'center' }]}
               onPress={() => setActiveHotspot(null)}
             >
-              <Text style={styles.cardBtnText}>Continuar explorando</Text>
+              <Text style={styles.cardBtnText}>Fechar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -505,21 +506,23 @@ export default function EscapeRoomScreen({ navigation, route }) {
                   </Text>
                   <FuriganaText
                     text={activeHotspot.useItemSuccess}
-                    fontSize={13}
+                    fontSize={14}
                     color="#e8e8e8"
                     furiganaColor={accent}
-                    style={{ justifyContent: 'flex-start' }}
+                    align="left"
                   />
                 </View>
               ) : null}
               {activeHotspot?.reveals ? (
-                <FuriganaText
-                  text={activeHotspot.reveals}
-                  fontSize={14}
-                  color="#e8e8e8"
-                  furiganaColor={accent}
-                  style={{ justifyContent: 'flex-start' }}
-                />
+                <View style={{ marginTop: activeHotspot?._justUnlocked ? 10 : 0 }}>
+                  <FuriganaText
+                    text={activeHotspot.reveals}
+                    fontSize={14}
+                    color="#e8e8e8"
+                    furiganaColor={accent}
+                    align="left"
+                  />
+                </View>
               ) : null}
             </ScrollView>
             <View style={styles.cardActions}>

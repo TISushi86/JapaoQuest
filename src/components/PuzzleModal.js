@@ -99,7 +99,7 @@ export default function PuzzleModal({
                 fontSize={15}
                 color="#e8e8e8"
                 furiganaColor="#90caf9"
-                style={{ justifyContent: 'center' }}
+                align="center"
               />
             </View>
           ) : null}
@@ -113,13 +113,15 @@ export default function PuzzleModal({
               <View style={[styles.feedback, styles.feedbackCorrect]}>
                 <Text style={styles.feedbackTitle}>✓ Correto!</Text>
                 {puzzle.explanation ? (
-                  <FuriganaText
-                    text={puzzle.explanation}
-                    fontSize={13}
-                    color="#a5d6a7"
-                    furiganaColor="#c8e6c9"
-                    style={{ justifyContent: 'center', marginTop: 6 }}
-                  />
+                  <View style={{ marginTop: 6 }}>
+                    <FuriganaText
+                      text={puzzle.explanation}
+                      fontSize={13}
+                      color="#a5d6a7"
+                      furiganaColor="#c8e6c9"
+                      align="center"
+                    />
+                  </View>
                 ) : null}
                 {puzzle.translation ? (
                   <Text style={styles.feedbackTranslation}>「{puzzle.translation}」</Text>
@@ -131,13 +133,15 @@ export default function PuzzleModal({
                 <Text style={styles.feedbackTitle}>✗ Resposta incorreta</Text>
                 <Text style={styles.feedbackSub}>Você perde 1 ♥. Tente novamente em outra abordagem.</Text>
                 {puzzle.explanation ? (
-                  <FuriganaText
-                    text={puzzle.explanation}
-                    fontSize={13}
-                    color="#ffab91"
-                    furiganaColor="#ffccbc"
-                    style={{ justifyContent: 'center', marginTop: 6 }}
-                  />
+                  <View style={{ marginTop: 6 }}>
+                    <FuriganaText
+                      text={puzzle.explanation}
+                      fontSize={13}
+                      color="#ffab91"
+                      furiganaColor="#ffccbc"
+                      align="center"
+                    />
+                  </View>
                 ) : null}
               </View>
             )}
@@ -205,7 +209,7 @@ function ReadingChoice({ puzzle, phase, onAnswer, accentColor }) {
               fontSize={15}
               color="#fff"
               furiganaColor="#b3e5fc"
-              style={{ justifyContent: 'center' }}
+              align="center"
             />
           </TouchableOpacity>
         );
@@ -502,7 +506,7 @@ function CounterPuzzle({ puzzle, phase, onAnswer, accentColor }) {
             onPress={() => handlePress(idx)}
             disabled={phase !== 'question'}
           >
-            <FuriganaText text={opt} fontSize={15} color="#fff" furiganaColor="#b3e5fc" style={{ justifyContent: 'center' }} />
+            <FuriganaText text={opt} fontSize={15} color="#fff" furiganaColor="#b3e5fc" align="center" />
           </TouchableOpacity>
         );
       })}

@@ -65,7 +65,7 @@ export default function Hotspot({
           fontSize={10}
           color="#fff"
           furiganaColor={accentColor}
-          style={{ justifyContent: 'center' }}
+          align="center"
         />
       </View>
     </TouchableOpacity>
