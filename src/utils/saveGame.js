@@ -21,6 +21,7 @@ export const SAVE_DEFAULTS = {
   completedLessons:     [],
   battlesWonByRegion:  {},     // { N5: 1, N4: 0, ... }
   knowKanaAsked:       false,  // se já perguntou "sabe hiragana/katakana?" no modo história
+  completedEscapeRooms: [],    // ids das câmaras da memória já escapadas (ex.: ['room-n5'])
 };
 
 /** Preferências (devMode) — separadas do progresso */

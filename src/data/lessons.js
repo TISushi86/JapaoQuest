@@ -23,8 +23,10 @@
  */
 
 import { buildAllKanjiLessons } from './kanjiLessons';
+import { buildAllVocabLessons } from './vocabLessons';
 
 const KANJI_LESSONS = buildAllKanjiLessons();
+const VOCAB_LESSONS = buildAllVocabLessons();
 
 export const LESSONS = [
 
@@ -4119,6 +4121,11 @@ export const LESSONS = [
   // LIÇÕES DE KANJI (geradas automaticamente)
   // ═══════════════════════════════════════════════════════════════════════════════
   ...KANJI_LESSONS,
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // LIÇÕES DE VOCABULÁRIO (palavras compostas com kanji — JLPT)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  ...VOCAB_LESSONS,
 ];
 
 /**

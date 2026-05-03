@@ -21,6 +21,7 @@ export const SAVE_DEFAULTS = {
   completedLessons: [],
   battlesWonByRegion: {},
   knowKanaAsked: false,
+  completedEscapeRooms: [],
 };
 
 export async function loadPreferences() {

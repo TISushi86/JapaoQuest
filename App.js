@@ -17,6 +17,8 @@ import KanaRainScreen from './src/screens/KanaRainScreen';
 import EimeiTempleScreen from './src/screens/EimeiTempleScreen';
 import BattleTempleSelectScreen from './src/screens/BattleTempleSelectScreen';
 import SimuladoScreen from './src/screens/SimuladoScreen';
+import EscapeRoomScreen from './src/screens/EscapeRoomScreen';
+import EscapeRoomSelectScreen from './src/screens/EscapeRoomSelectScreen';
 import { PlayerProvider } from './src/context/PlayerContext';
 import ConquestModalLayer from './src/components/ConquestModalLayer';
 
@@ -112,6 +114,8 @@ export default function App() {
             <Stack.Screen name="Lesson" component={LessonScreen} />
             <Stack.Screen name="EimeiTemple" component={EimeiTempleScreen} />
             <Stack.Screen name="Simulado" component={SimuladoScreen} />
+            <Stack.Screen name="EscapeRoom" component={EscapeRoomScreen} />
+            <Stack.Screen name="EscapeRoomSelect" component={EscapeRoomSelectScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </PlayerProvider>

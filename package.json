@@ -7,7 +7,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "generate:kanji": "node scripts/generate-kanji-data.js"
+    "generate:kanji": "node scripts/generate-kanji-data.js",
+    "generate:vocab": "node scripts/generate-vocab-data.js",
+    "translate:pt": "node scripts/translate-to-pt.js"
   },
   "dependencies": {
     "@react-navigation/native": "^6.1.18",
@@ -28,6 +30,8 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@vitalets/google-translate-api": "^9.2.1",
+    "free-translate": "^0.6.1",
     "kanji-data": "^1.1.0"
   },
   "private": true

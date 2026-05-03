@@ -32,6 +32,7 @@ export const PlayerProvider = ({ children }) => {
   const [completedLessons, setCompletedLessons] = useState([]);
   const [battlesWonByRegion, setBattlesWonByRegion] = useState({});
   const [knowKanaAsked, setKnowKanaAsked] = useState(false);
+  const [completedEscapeRooms, setCompletedEscapeRooms] = useState([]);
   const [devMode,           setDevMode]           = useState(false);
   const [conquestMessage,   setConquestMessage]   = useState(null);
   const [hasSave,          setHasSave]          = useState(false);
@@ -43,9 +44,11 @@ export const PlayerProvider = ({ children }) => {
     stateRef.current = {
       gender, jlptLevel, xp, totalXp, rankIndex, hp,
       lastScreen, kanaPhase, kanaHGroupIdx, kanaKGroupIdx, completedLessons, battlesWonByRegion, devMode, knowKanaAsked,
+      completedEscapeRooms,
     };
   }, [gender, jlptLevel, xp, totalXp, rankIndex, hp,
-      lastScreen, kanaPhase, kanaHGroupIdx, kanaKGroupIdx, completedLessons, battlesWonByRegion, devMode, knowKanaAsked]);
+      lastScreen, kanaPhase, kanaHGroupIdx, kanaKGroupIdx, completedLessons, battlesWonByRegion, devMode, knowKanaAsked,
+      completedEscapeRooms]);
 
   // ── Carregar save ao iniciar (prefs → devMode → save correto) ─────────────────
   useEffect(() => {
@@ -68,6 +71,7 @@ export const PlayerProvider = ({ children }) => {
         setCompletedLessons(save.completedLessons ?? []);
         setBattlesWonByRegion(save.battlesWonByRegion ?? {});
         setKnowKanaAsked(save.knowKanaAsked ?? false);
+        setCompletedEscapeRooms(save.completedEscapeRooms ?? []);
         setHasSave(true);
       }
       setSaveLoaded(true);
@@ -89,6 +93,7 @@ export const PlayerProvider = ({ children }) => {
     if (partial.completedLessons !== undefined) setCompletedLessons(partial.completedLessons);
     if (partial.battlesWonByRegion !== undefined) setBattlesWonByRegion(partial.battlesWonByRegion);
     if (partial.knowKanaAsked !== undefined) setKnowKanaAsked(partial.knowKanaAsked);
+    if (partial.completedEscapeRooms !== undefined) setCompletedEscapeRooms(partial.completedEscapeRooms);
 
     await writeSave(data, isDev);
     setHasSave(true);
@@ -113,6 +118,7 @@ export const PlayerProvider = ({ children }) => {
     setCompletedLessons(d.completedLessons);
     setBattlesWonByRegion(d.battlesWonByRegion ?? {});
     setKnowKanaAsked(d.knowKanaAsked ?? false);
+    setCompletedEscapeRooms(d.completedEscapeRooms ?? []);
     setConquestMessage(null);
     setHasSave(false);
   }, []);
@@ -147,6 +153,16 @@ export const PlayerProvider = ({ children }) => {
       setHasSave(true);
       setConquestMessage(`level_unlocked:${nextLevel}`);
     }
+  }, []);
+
+  // ── Marcar câmara da memória como concluída ────────────────────────────────
+  const completeEscapeRoom = useCallback(async (roomId) => {
+    const current = stateRef.current.completedEscapeRooms ?? [];
+    if (current.includes(roomId)) return;
+    const updated = [...current, roomId];
+    setCompletedEscapeRooms(updated);
+    await writeSave({ ...stateRef.current, completedEscapeRooms: updated }, stateRef.current.devMode ?? false);
+    setHasSave(true);
   }, []);
 
   // ── Registrar vitória em batalha (modo história) ────────────────────────────
@@ -211,6 +227,7 @@ export const PlayerProvider = ({ children }) => {
       setCompletedLessons(save.completedLessons ?? []);
       setBattlesWonByRegion(save.battlesWonByRegion ?? {});
       setKnowKanaAsked(save.knowKanaAsked ?? false);
+      setCompletedEscapeRooms(save.completedEscapeRooms ?? []);
       setHasSave(true);
     } else {
       setXp(0);
@@ -225,6 +242,7 @@ export const PlayerProvider = ({ children }) => {
       setCompletedLessons([]);
       setBattlesWonByRegion({});
       setKnowKanaAsked(false);
+      setCompletedEscapeRooms([]);
       setHasSave(false);
     }
     setConquestMessage(null);
@@ -247,6 +265,7 @@ export const PlayerProvider = ({ children }) => {
       kanaHGroupIdx,
       kanaKGroupIdx,
       completedLessons,
+      completedEscapeRooms,
       knowKanaAsked,
       devMode,
       conquestMessage,
@@ -260,6 +279,7 @@ export const PlayerProvider = ({ children }) => {
       toggleDevMode,
       completeLesson,
       recordBattleVictory,
+      completeEscapeRoom,
     }}>
       {children}
     </PlayerContext.Provider>

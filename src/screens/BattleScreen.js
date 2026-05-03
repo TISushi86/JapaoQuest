@@ -6,6 +6,7 @@ import {
 import RankUpModal from '../components/RankUpModal';
 import { getDB } from '../utils/dbAdapter';
 import { usePlayer } from '../context/PlayerContext';
+import { getRoomByLevel } from '../data/escapeRooms';
 
 const ENEMY_MAX_HP = 3;
 const XP_PER_HIT   = 15;
@@ -47,7 +48,7 @@ const hpStyles = StyleSheet.create({
 
 // ─── BattleScreen ─────────────────────────────────────────────────────────────
 export default function BattleScreen({ navigation, route }) {
-  const { hp, maxHp, gainXP, loseHP, restoreHP, recordBattleVictory, jlptLevel: ctxLevel } = usePlayer();
+  const { hp, maxHp, gainXP, loseHP, restoreHP, recordBattleVictory, jlptLevel: ctxLevel, completedEscapeRooms } = usePlayer();
   const jlptLevels = route.params?.jlptLevels;  // array: modo "todos até meu nível"
   const level = route.params?.jlptLevel || ctxLevel || 'N5';
   const fromTemple = route.params?.fromTemple === true;
@@ -255,15 +256,42 @@ export default function BattleScreen({ navigation, route }) {
 
   // ─── Tela de vitória ──────────────────────────────────────────────────────
   if (phase === 'victory') {
+    // No modo história, após vencer pela 1ª vez, oferece a Câmara da Memória do nível
+    const chamberRoom = !fromTemple ? getRoomByLevel(level) : null;
+    const chamberAvailable = chamberRoom
+      && !chamberRoom.stub
+      && !(completedEscapeRooms || []).includes(chamberRoom.id);
+
     return (
       <View style={[styles.container, styles.centered]}>
         <Text style={styles.endIcon}>⚔️</Text>
         <Text style={[styles.endTitle, { color: '#ffd700' }]}>Vitória!</Text>
         <Text style={styles.endSubtitle}>Kanji dominado!</Text>
         <Text style={styles.xpText}>+{xpEarned} XP</Text>
-        <TouchableOpacity style={styles.endBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.endBtnText}>Voltar ao Mapa</Text>
-        </TouchableOpacity>
+
+        {chamberAvailable ? (
+          <>
+            <View style={styles.chamberHint}>
+              <Text style={styles.chamberHintIcon}>🗝</Text>
+              <Text style={styles.chamberHintText}>
+                Uma névoa se dissipa. Você sente uma memória antiga ali ao lado, esperando para ser recuperada.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.endBtn, { borderColor: chamberRoom.accentColor, backgroundColor: '#0f1628' }]}
+              onPress={() => navigation.replace('EscapeRoom', { roomId: chamberRoom.id, fromStory: true })}
+            >
+              <Text style={styles.endBtnText}>🗝  Entrar na Câmara da Memória</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.skipBtn} onPress={() => navigation.goBack()}>
+              <Text style={styles.skipBtnText}>Deixar para depois</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity style={styles.endBtn} onPress={() => navigation.goBack()}>
+            <Text style={styles.endBtnText}>Voltar ao Mapa</Text>
+          </TouchableOpacity>
+        )}
         <RankUpModal visible={!!rankUpModal} newRank={rankUpModal} onDismiss={() => setRankUpModal(null)} />
       </View>
     );
@@ -473,4 +501,25 @@ const styles = StyleSheet.create({
     borderColor: '#ffd700',
   },
   endBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+
+  chamberHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+    marginHorizontal: 24,
+    padding: 12,
+    backgroundColor: 'rgba(200,169,110,0.1)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#c8a96e44',
+  },
+  chamberHintIcon: { fontSize: 28 },
+  chamberHintText: { flex: 1, color: '#c8b890', fontSize: 12, lineHeight: 18, fontStyle: 'italic' },
+  skipBtn: {
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+  },
+  skipBtnText: { color: '#666', fontSize: 13 },
 });

@@ -86,6 +86,16 @@ function getMinigames(context) {
       screen: 'Simulado',
       params: { fromTemple: true },
     },
+    {
+      id: 'escape-rooms',
+      name: 'Câmaras da Memória',
+      desc: 'Resolva enigmas em salas temáticas para recuperar memórias perdidas de Ryuu.',
+      icon: '🗝',
+      color: '#c8a96e',
+      unlocked: true,
+      screen: 'EscapeRoomSelect',
+      params: {},
+    },
   ];
 }
 

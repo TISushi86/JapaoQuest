@@ -6,7 +6,7 @@ const kanji = require('kanji-data');
 const fs = require('fs');
 const path = require('path');
 
-// Mapa de significados EN → PT (principais)
+// Mapa de significados EN → PT (principais) — português do Brasil
 const MEANINGS_PT = {
   One: 'um', Two: 'dois', Three: 'três', Four: 'quatro', Five: 'cinco',
   Six: 'seis', Seven: 'sete', Eight: 'oito', Nine: 'nove', Ten: 'dez',
@@ -37,6 +37,19 @@ const MEANINGS_PT = {
   Peace: 'paz', Law: 'lei', Government: 'governo', Politics: 'política',
   Company: 'empresa', Meeting: 'reunião', Office: 'escritório',
   Cat: 'gato', Dog: 'cachorro', Bird: 'pássaro', Fish: 'peixe',
+  Above: 'acima', Below: 'abaixo', Center: 'centro', Back: 'costas',
+  Circle: 'círculo', 'Come out': 'sair', Learning: 'aprendizado',
+  Female: 'feminino', Male: 'masculino', Birth: 'nascimento',
+  'Day off': 'folga', What: 'o quê', Ahead: 'à frente',
+  'Counter for years': 'contador de anos', Japan: 'Japão',
+  Hour: 'hora', Become: 'tornar-se', Correction: 'correção',
+  Every: 'todo', Air: 'ar', Ask: 'perguntar', Act: 'agir',
+  Tale: 'história', Language: 'idioma', Turkey: 'peru',
+  Earth: 'terra', Soil: 'terra', Ground: 'chão',
+  Heavens: 'céu', Little: 'pequeno',
+  '11am-1pm': '11h-13h', Half: 'metade',
+  'Counter for years': 'contador de anos', Distinguished: 'distinto',
+  'Job opening': 'vaga', 'Place of origin': 'lugar de origem',
 };
 
 function toKatakana(hiragana) {
@@ -48,7 +61,8 @@ function toKatakana(hiragana) {
 
 function translateMeaning(en) {
   const clean = (en || '').replace(/[\^!]/g, '').trim();
-  return MEANINGS_PT[clean] || clean.toLowerCase();
+  const cap = clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
+  return MEANINGS_PT[clean] || MEANINGS_PT[cap] || MEANINGS_PT[clean.toLowerCase()] || clean.toLowerCase();
 }
 
 function formatKanjiEntry(char, meta) {
@@ -109,11 +123,6 @@ function main() {
  * Formato: { kanji, onyomi, kunyomi, meaning, example }
  * Execute "npm run generate:kanji" para atualizar.
  */
-
-// ─── INICIANTE — Kanji mais básicos (${KANJI_INICIANTE.length}) ─────────────────────────────────────
-export const KANJI_INICIANTE = [
-${KANJI_INICIANTE.map(formatEntry).join(',\n')}
-];
 
 // ─── N5 — Kanji essenciais (${KANJI_N5.length}) ──────────────────────────────────────────────
 export const KANJI_N5 = [
