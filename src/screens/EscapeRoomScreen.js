@@ -120,7 +120,6 @@ export default function EscapeRoomScreen({ navigation, route }) {
   // ─── Clique num hotspot ─────────────────────────────────────────────────
   const handleHotspotPress = (h) => {
     const state = hotspotState(h);
-    if (state === 'solved' && !h.ambientOnly) return;
 
     // Cenário 1: jogador tem item selecionado e clica num hotspot
     if (selectedId) {
@@ -133,7 +132,8 @@ export default function EscapeRoomScreen({ navigation, route }) {
       };
 
       if (state === 'solved' || (h.useItem && unlocked.includes(h.id))) {
-        showToast('Você já explorou isto.', 'info');
+        // Sem distinção visual de "já explorado", este feedback substitui.
+        showToast('Nada acontece.', 'wrong');
         setSelectedId(null);
         return;
       }
@@ -168,8 +168,21 @@ export default function EscapeRoomScreen({ navigation, route }) {
     }
 
     // Cenário 2: clique sem item selecionado
+
+    // Hotspot já resolvido → reabre o modal com a pista/texto (útil para reler
+    // direções da janela, kazoku da lareira, etc., já que não há mais "✓"
+    // indicando visualmente que o objeto foi concluído).
+    if (state === 'solved') {
+      if (h.reveals || h.useItemSuccess) {
+        setActiveHotspot({ ...h, _justUnlocked: !!h.useItemSuccess, _revisit: true });
+      } else {
+        showToast('Nada acontece.', 'wrong');
+      }
+      return;
+    }
+
     // Hotspot que ainda precisa ser destravado (inclui porta final):
-    // mostra o modal teaser com mensagem explicativa.
+    // mostra o modal teaser com a descrição neutra.
     if (h.useItem && !unlocked.includes(h.id)) {
       setActiveHotspot({ ...h, _lockedTeaser: true });
       return;
@@ -487,7 +500,9 @@ export default function EscapeRoomScreen({ navigation, route }) {
             <ScrollView style={{ maxHeight: 280 }}>
               {activeHotspot?._justUnlocked && activeHotspot?.useItemSuccess ? (
                 <View style={[styles.unlockBanner, { borderColor: accent + '55' }]}>
-                  <Text style={[styles.unlockBannerLabel, { color: accent }]}>✓  Destravado</Text>
+                  <Text style={[styles.unlockBannerLabel, { color: accent }]}>
+                    {activeHotspot?._revisit ? '📝  Anotações' : '✓  Destravado'}
+                  </Text>
                   <FuriganaText
                     text={activeHotspot.useItemSuccess}
                     fontSize={13}
@@ -514,7 +529,9 @@ export default function EscapeRoomScreen({ navigation, route }) {
               >
                 <Text style={styles.cardBtnText}>Fechar</Text>
               </TouchableOpacity>
-              {activeHotspot?.puzzle ? (
+              {/* Botão "Investigar →" só aparece quando há puzzle pendente
+                  (não aparece quando é uma revisita a hotspot já resolvido). */}
+              {activeHotspot?.puzzle && !activeHotspot._revisit && !solved.includes(activeHotspot.id) ? (
                 <TouchableOpacity
                   style={[styles.cardBtn, { backgroundColor: accent + '22', borderColor: accent }]}
                   onPress={() => setShowPuzzle(true)}

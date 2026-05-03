@@ -5,47 +5,42 @@ import FuriganaText from './FuriganaText';
 /**
  * Hotspot clicável no cenário de uma sala de escape room.
  *
- * Todos os hotspots (exceto os já resolvidos) aparecem visualmente idênticos,
- * sem indicação de cadeado, de porta de saída ou de compatibilidade com o item
- * selecionado. O jogador precisa deduzir sozinho onde usar cada item e quais
- * objetos são relevantes.
+ * Todos os hotspots aparecem visualmente idênticos em qualquer estado.
+ * Não há marca verde de "resolvido", cadeado, seta de saída, ou halo
+ * dourado indicando item compatível. O jogador precisa deduzir tudo por
+ * conta própria — inclusive lembrar em quais objetos já interagiu.
  *
- * Estados:
- *   'idle'   / 'locked' / 'exit' – todos renderizados como um hotspot neutro,
- *                                  apenas com um pulso sutil para chamar atenção.
- *   'solved' – marca verde ✓ e opacidade reduzida.
+ * O único feedback visual que permanece é o pulso sutil permanente, para
+ * dar vida ao cenário e ajudar o jogador a perceber que há objetos
+ * interativos em geral.
  *
  * Props:
  *   hotspot     – { emoji, label, labelPt, ... }
- *   x, y        – posição absoluta (pixels)
- *   state       – estado lógico (ver acima)
- *   accentColor – cor de destaque
- *   onPress     – callback
+ *   x, y        – posição absoluta (pixels) dentro do container
+ *   accentColor – cor de destaque da borda e do label
+ *   onPress     – callback quando tocado
+ *
+ * (state é aceito mas ignorado — mantido para compatibilidade com o motor.)
  */
 export default function Hotspot({
-  hotspot, x, y, state = 'idle',
+  hotspot, x, y,
   accentColor = '#ffd700',
   onPress,
 }) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const isSolved  = state === 'solved';
 
   useEffect(() => {
-    if (!isSolved) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.06, duration: 1300, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1,    duration: 1300, useNativeDriver: true }),
-        ])
-      ).start();
-    } else {
-      pulseAnim.setValue(1);
-    }
-  }, [isSolved]);
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.06, duration: 1300, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1,    duration: 1300, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
 
   return (
     <TouchableOpacity
-      style={[styles.wrapper, { left: x - 38, top: y - 38 }, isSolved && styles.solvedWrapper]}
+      style={[styles.wrapper, { left: x - 38, top: y - 38 }]}
       onPress={() => onPress?.(hotspot)}
       activeOpacity={0.75}
     >
@@ -53,29 +48,23 @@ export default function Hotspot({
         style={[
           styles.circle,
           {
-            backgroundColor: isSolved ? 'rgba(40,40,50,0.75)' : 'rgba(30,15,5,0.88)',
-            borderColor: isSolved ? '#4caf50' : accentColor,
+            backgroundColor: 'rgba(30,15,5,0.88)',
+            borderColor: accentColor,
             transform: [{ scale: pulseAnim }],
           },
         ]}
       >
-        <Text style={[styles.emoji, isSolved && styles.emojiDim]}>
+        <Text style={styles.emoji}>
           {hotspot.emoji}
         </Text>
-
-        {isSolved ? (
-          <View style={styles.solvedBadge}>
-            <Text style={styles.solvedBadgeText}>✓</Text>
-          </View>
-        ) : null}
       </Animated.View>
 
       <View style={[styles.labelBox, { borderColor: accentColor + '55' }]}>
         <FuriganaText
           text={hotspot.label}
           fontSize={10}
-          color={isSolved ? '#888' : '#fff'}
-          furiganaColor={isSolved ? '#666' : accentColor}
+          color="#fff"
+          furiganaColor={accentColor}
           style={{ justifyContent: 'center' }}
         />
       </View>
@@ -89,8 +78,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 76,
   },
-  solvedWrapper: { opacity: 0.6 },
-
   circle: {
     width: 66, height: 66,
     borderRadius: 33,
@@ -103,22 +90,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.6,
     shadowRadius: 4,
   },
-  emoji:    { fontSize: 30 },
-  emojiDim: { opacity: 0.45 },
-
-  solvedBadge: {
-    position: 'absolute',
-    right: -5, bottom: -5,
-    width: 22, height: 22,
-    borderRadius: 11,
-    backgroundColor: '#1b5e20',
-    borderWidth: 1.5,
-    borderColor: '#4caf50',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  solvedBadgeText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-
+  emoji: { fontSize: 30 },
   labelBox: {
     marginTop: 4,
     paddingHorizontal: 6,
