@@ -52,7 +52,7 @@ export const ROOMS = [
     accentColor: '#d4a574',
     backgroundImage: require('../../assets/escape_rooms/n5.png'),
     intro:
-      'Você acorda numa cabana queimada da antiga Vila Kakurega. A névoa ainda paira entre os escombros. No ar, um sussurro:\n\n"Se você ler o que está escrito aqui... talvez se lembre de mim.\n\nExplore a sala. Cada item que você achar pode abrir o próximo."',
+      'Você acorda numa cabana queimada da antiga Vila Kakurega. A névoa ainda paira entre os escombros. No ar, um sussurro:\n\n"Se você ler o que está escrito aqui... talvez se lembre de mim.\n\nExplore cada canto da sala — role a tela, toque em tudo. Nem tudo aqui serve. Você terá que descobrir."',
 
     hotspots: [
       // ═════════════════════════════════════════════════════════════════════
@@ -64,7 +64,7 @@ export const ROOMS = [
         emoji: '📚',
         label: '{棚|たな}',
         labelPt: 'Estante',
-        x: 0.80, y: 0.40,
+        x: 0.80, y: 0.33,
         reveals:
           'Uma estante tombada com quatro livros cobertos de cinza. Eimei sussurra em sua mente: "procure o que mostra caminhos...".',
         puzzle: {
@@ -93,10 +93,10 @@ export const ROOMS = [
         emoji: '🕯',
         label: '{囲炉裏|いろり}',
         labelPt: 'Lareira',
-        x: 0.50, y: 0.55,
+        x: 0.50, y: 0.58,
         useItem: 'item-fosforo',
-        initialMessage: 'A lareira está apagada e fria. Talvez um clique de chama a reacenda...',
-        wrongItemMessage: 'Isso não serve para acender uma fogueira.',
+        initialMessage: 'A lareira está apagada. Há cinzas frias no fundo.',
+        wrongItemMessage: 'Nada acontece.',
         useItemSuccess: 'Você risca o fósforo. A lareira desperta. Nas cinzas flutuantes, quatro kanas se revelam.',
         puzzle: {
           type: 'kanaLock',
@@ -120,10 +120,10 @@ export const ROOMS = [
         emoji: '📦',
         label: '{箱|はこ}',
         labelPt: 'Baú',
-        x: 0.20, y: 0.70,
+        x: 0.20, y: 0.78,
         useItem: 'item-chave-bronze',
-        initialMessage: 'Um baú com cadeado de bronze. Parece aguardar uma chave.',
-        wrongItemMessage: 'Esta chave não parece caber aqui.',
+        initialMessage: 'Um baú velho, fechado. Tem um pequeno trinco enferrujado.',
+        wrongItemMessage: 'Nada acontece.',
         useItemSuccess: 'A chave de bronze gira com um estalo surdo. O baú se abre.',
         reveals:
           'Dentro do baú, uma tábua gravada:\n\n"{私|わたし}の{子供|こども}：{息子|むすこ}{一人|ひとり}と{娘|むすめ}{一人|ひとり}。{私|わたし}と{妻|つま}。"',
@@ -149,10 +149,10 @@ export const ROOMS = [
         emoji: '🪑',
         label: '{机|つくえ}',
         labelPt: 'Mesa',
-        x: 0.20, y: 0.40,
+        x: 0.20, y: 0.33,
         useItem: 'item-bilhete',
-        initialMessage: 'Uma mesa empoeirada. Vazia. Talvez algo ser lido aqui melhor.',
-        wrongItemMessage: 'Isso não pertence a esta mesa.',
+        initialMessage: 'Uma mesa empoeirada. Totalmente vazia.',
+        wrongItemMessage: 'Nada acontece.',
         useItemSuccess: 'Você espalha o bilhete sobre a mesa. Três partículas foram apagadas pela chuva.',
         puzzle: {
           type: 'particleFill',
@@ -188,12 +188,12 @@ export const ROOMS = [
         emoji: '🪟',
         label: '{窓|まど}',
         labelPt: 'Janela',
-        x: 0.50, y: 0.14,
+        x: 0.50, y: 0.07,
         useItem: 'item-bussola',
-        initialMessage: 'A janela está rachada. Lá fora, estrelas piscam sobre montanhas longínquas.',
-        wrongItemMessage: 'Isso não ajuda a enxergar o caminho.',
+        initialMessage: 'A janela está rachada. Lá fora, estrelas piscam sobre montanhas distantes. Mas você não sabe a qual direção cada coisa pertence.',
+        wrongItemMessage: 'Nada acontece.',
         useItemSuccess:
-          'A agulha da bússola estremece. Uma voz ecoa: "O templo fica ao {東|ひがし}. A família foi levada ao {北|きた}."',
+          'A agulha da bússola estremece e encontra o norte. Uma voz ecoa:\n\n"O {寺|てら} (templo) fica ao {東|ひがし} (leste). A {家族|かぞく} (família) foi levada ao {北|きた} (norte)."',
         puzzle: {
           type: 'direction',
           prompt: 'Toque nas direções: templo primeiro, família depois.',
@@ -217,14 +217,14 @@ export const ROOMS = [
         emoji: '🚪',
         label: '{戸|と}',
         labelPt: 'Porta',
-        x: 0.80, y: 0.70,
+        x: 0.80, y: 0.78,
         isExit: true,
         useItem: ['item-chave-ouro', 'item-mapa'],
         initialMessage:
-          'A porta está trancada por um cadeado dourado. Do outro lado, você não sabe por onde ir.',
-        wrongItemMessage: 'A porta não reage a isso.',
+          'A porta está trancada. Do outro lado, você nem sabe se existe mundo — ou apenas mais névoa.',
+        wrongItemMessage: 'Nada acontece.',
         useItemSuccess:
-          'Você insere a chave dourada. O cadeado cai. Com o mapa em mãos, o leste finalmente parece um caminho possível.',
+          'A fechadura cede com um estalo seco. A porta range e abre para a noite fria.',
       },
 
       // ═════════════════════════════════════════════════════════════════════
@@ -235,7 +235,7 @@ export const ROOMS = [
         emoji: '🎋',
         label: '{絵馬|えま}',
         labelPt: 'Ema',
-        x: 0.80, y: 0.20,
+        x: 0.80, y: 0.15,
         ambientOnly: true,
         reveals:
           'Uma tabuleta de madeira pendurada com um desejo gravado:\n\n「{家族|かぞく}の{幸|しあわ}せ」\n\n(a felicidade da família)\n\nVocê a reconhece. Você mesmo a pendurou aqui, há muito tempo.',
@@ -245,10 +245,53 @@ export const ROOMS = [
         emoji: '🪔',
         label: '{灯|あかり}',
         labelPt: 'Lanterna',
-        x: 0.20, y: 0.20,
+        x: 0.20, y: 0.15,
         ambientOnly: true,
         reveals:
-          'Uma lanterna de papel há muito apagada. O papel tem escrito:\n\n{夜|よる} (noite).\n\nNão há óleo. Não há utilidade agora.',
+          'Uma lanterna de papel há muito apagada. O papel tem escrito:\n\n{夜|よる} (noite).\n\nNão há óleo. Não há utilidade agora — mas você recorda o hábito de acendê-la ao entardecer.',
+      },
+
+      // Didáticos: não servem para avançar, mas ensinam kanji e vocabulário.
+      // Criados de propósito para confundir o jogador sobre onde usar os itens.
+      {
+        id: 'hs-flor',
+        emoji: '🌸',
+        label: '{桜|さくら}',
+        labelPt: 'Sakura',
+        x: 0.20, y: 0.23,
+        ambientOnly: true,
+        reveals:
+          'Uma flor de cerejeira seca num vaso rachado. No papel amarelado ao lado:\n\n「{春|はる}が{来|く}る」\n(A primavera chega)\n\n{桜|さくら} = flor de cerejeira. {春|はる} = primavera.\n\nVocê lembra vagamente... alguém esperava as cerejas florirem.',
+      },
+      {
+        id: 'hs-pergaminho',
+        emoji: '📜',
+        label: '{仮名|かな}',
+        labelPt: 'Pergaminho',
+        x: 0.80, y: 0.23,
+        ambientOnly: true,
+        reveals:
+          'Um pergaminho velho lista os kanas básicos:\n\nあ い う え お\nか き く け こ\nさ し す せ そ\n\nEimei sussurra: "Os fundamentos não se esquecem, mesmo quando tudo arde."',
+      },
+      {
+        id: 'hs-espelho',
+        emoji: '🪞',
+        label: '{鏡|かがみ}',
+        labelPt: 'Espelho',
+        x: 0.20, y: 0.43,
+        ambientOnly: true,
+        reveals:
+          'Um espelho rachado reflete um rosto que você mal reconhece. Escrito em laca preta na moldura:\n\n「{私|わたし}は{誰|だれ}だ？」\n(Quem sou eu?)\n\n{私|わたし} = eu. {誰|だれ} = quem. {だ} = ser (informal).',
+      },
+      {
+        id: 'hs-furin',
+        emoji: '🎐',
+        label: '{風鈴|ふうりん}',
+        labelPt: 'Sino de vento',
+        x: 0.80, y: 0.43,
+        ambientOnly: true,
+        reveals:
+          'Um furin de vidro balança sem vento. No pequeno papel preso:\n\n「{風|かぜ}はやさしい」\n(O vento é gentil)\n\n{風|かぜ} = vento. やさしい = gentil/fácil.\n\nSó os mortos escutam sinos sem vento, dizem na vila.',
       },
     ],
 

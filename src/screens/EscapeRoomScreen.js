@@ -16,6 +16,9 @@ import RankUpModal from '../components/RankUpModal';
 const { width: SW, height: SH } = Dimensions.get('window');
 const MAX_HP = 3;
 const MAX_HINTS = 3;
+// Altura total rolável da cena. Maior que a viewport → força exploração por
+// scroll, dando sensação de sala ampla que não cabe toda na tela.
+const SCENE_HEIGHT = Math.max(980, SH * 1.5);
 
 /**
  * Motor da Câmara da Memória (escape room).
@@ -57,7 +60,6 @@ export default function EscapeRoomScreen({ navigation, route }) {
   const [showHint, setShowHint] = useState(false);
   const [hintText, setHintText] = useState('');
   const [rankUpModal, setRankUpModal] = useState(null);
-  const [mapAreaH, setMapAreaH] = useState(SH * 0.6);
 
   if (!room) {
     return (
@@ -122,47 +124,23 @@ export default function EscapeRoomScreen({ navigation, route }) {
 
     // Cenário 1: jogador tem item selecionado e clica num hotspot
     if (selectedId) {
-      if (state === 'solved') {
-        showToast('Já resolvido.', 'info');
+      // Feedback neutro para qualquer tentativa falha. Não revela POR QUE
+      // falhou (se é objeto decorativo, se é item errado, se é item parcial).
+      // O jogador precisa deduzir.
+      const failNeutro = () => {
+        showToast('Nada acontece.', 'wrong');
+        setSelectedId(null);
+      };
+
+      if (state === 'solved' || (h.useItem && unlocked.includes(h.id))) {
+        showToast('Você já explorou isto.', 'info');
         setSelectedId(null);
         return;
       }
+      if (h.ambientOnly || !h.useItem) return failNeutro();
 
-      // Hotspot ambiental não aceita itens
-      if (h.ambientOnly) {
-        showToast(h.wrongItemMessage || 'Isso não serve aqui.', 'wrong');
-        setSelectedId(null);
-        return;
-      }
-
-      // Hotspot sem useItem: não aceita itens
-      if (!h.useItem) {
-        showToast(h.wrongItemMessage || 'Este objeto não precisa disso.', 'wrong');
-        setSelectedId(null);
-        return;
-      }
-
-      // Hotspot já destravado — item irrelevante
-      if (unlocked.includes(h.id)) {
-        showToast('Já está aberto.', 'info');
-        setSelectedId(null);
-        return;
-      }
-
-      // Item correto?
-      if (itemMatches(h, selectedId)) {
-        // Para itens em array (porta final), exige ter TODOS no inventário
-        if (!allRequiredItemsInInventory(h)) {
-          const missing = (Array.isArray(h.useItem) ? h.useItem : [h.useItem])
-            .filter(id => !hasItem(id));
-          const missingItem = inventory.find(i => missing.includes(i.id));
-          showToast(
-            `Ainda falta algo. A ${h.labelPt.toLowerCase()} pede mais de uma coisa.`,
-            'wrong',
-          );
-          setSelectedId(null);
-          return;
-        }
+      // Item correto + todos os requisitos satisfeitos?
+      if (itemMatches(h, selectedId) && allRequiredItemsInInventory(h)) {
         // Destrava!
         setUnlocked(prev => prev.includes(h.id) ? prev : [...prev, h.id]);
         setSelectedId(null);
@@ -185,10 +163,8 @@ export default function EscapeRoomScreen({ navigation, route }) {
         return;
       }
 
-      // Item incorreto
-      showToast(h.wrongItemMessage || 'Isso não serve aqui.', 'wrong');
-      setSelectedId(null);
-      return;
+      // Item incorreto OU faltam outros itens (caso multi-item)
+      return failNeutro();
     }
 
     // Cenário 2: clique sem item selecionado
@@ -269,27 +245,24 @@ export default function EscapeRoomScreen({ navigation, route }) {
       return;
     }
 
-    // Estratégia: tenta dar dica sobre o próximo passo
-    // 1. Se tem item no inventário ainda não usado, indica onde usar
-    const unusedItem = inventory.find(item => {
-      return room.hotspots.some(h =>
+    // Dicas intencionalmente vagas — apenas alertam sobre item não usado ou
+    // sugerem explorar sem revelar alvo. O jogador deve deduzir sozinho.
+    const unusedItem = inventory.find(item =>
+      room.hotspots.some(h =>
         !solved.includes(h.id) && !unlocked.includes(h.id) && itemMatches(h, item.id)
-      );
-    });
+      ),
+    );
     let text;
     if (unusedItem) {
-      const target = room.hotspots.find(h =>
-        !solved.includes(h.id) && !unlocked.includes(h.id) && itemMatches(h, unusedItem.id)
-      );
-      text = `${unusedItem.emoji} "${unusedItem.label}" parece pertencer a algo... Talvez a ${target.labelPt.toLowerCase()}?`;
+      text = `Você já tem o "${unusedItem.label}" (${unusedItem.emoji}) há um tempo. Cada item tem um lugar certo — tente-o em objetos que ainda não cederam a nada.`;
     } else {
-      const nextFree = room.hotspots.find(h =>
+      const freeCount = room.hotspots.filter(h =>
         !solved.includes(h.id) && !h.useItem && !h.ambientOnly
-      );
-      if (nextFree) {
-        text = `Investigue "${nextFree.labelPt}" — ${nextFree.puzzle?.hintPt || 'algo útil pode sair daí'}.`;
+      ).length;
+      if (freeCount > 0) {
+        text = 'Há objetos aqui que se abrem sem precisar de nada do seu bolso. Olhe com cuidado — às vezes é só ler.';
       } else {
-        text = 'Observe cada objeto. Alguns são só atmosféricos — leia-os para relembrar. Outros guardam segredos.';
+        text = 'Objetos decorativos não inventam caminhos. Releia os que você destrancou — alguns guardam palavras que despertam memórias.';
       }
     }
 
@@ -407,19 +380,42 @@ export default function EscapeRoomScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* ── Cenário imersivo (ImageBackground + hotspots) ─────────────── */}
-      <ImageBackground
-        source={room.backgroundImage}
-        style={styles.mapArea}
-        imageStyle={styles.mapBackgroundImage}
-        onLayout={e => setMapAreaH(e.nativeEvent.layout.height)}
-      >
-        {/* Gradiente escuro de vinheta para legibilidade dos hotspots */}
-        <View style={styles.vignette} pointerEvents="none" />
+      {/* ── Cenário imersivo (scroll vertical com hotspots sobrepostos) ── */}
+      <View style={styles.mapWrapper}>
+        <ScrollView
+          style={styles.mapScroll}
+          contentContainerStyle={{ height: SCENE_HEIGHT, width: SW }}
+          showsVerticalScrollIndicator
+          bounces
+        >
+          <ImageBackground
+            source={room.backgroundImage}
+            style={styles.mapSceneFull}
+            imageStyle={styles.mapBackgroundImage}
+            resizeMode="cover"
+          >
+            <View style={styles.vignette} pointerEvents="none" />
 
-        {/* Toast de feedback rápido */}
+            {room.hotspots.map(h => {
+              const state = hotspotState(h);
+              return (
+                <Hotspot
+                  key={h.id}
+                  hotspot={h}
+                  x={h.x * SW}
+                  y={h.y * SCENE_HEIGHT}
+                  state={state}
+                  accentColor={accent}
+                  onPress={handleHotspotPress}
+                />
+              );
+            })}
+          </ImageBackground>
+        </ScrollView>
+
+        {/* Overlays fixos sobre a viewport (não rolam com o conteúdo) */}
         {toast ? (
-          <View style={[
+          <View pointerEvents="none" style={[
             styles.toast,
             toast.tone === 'wrong' && styles.toastWrong,
             toast.tone === 'win'   && styles.toastWin,
@@ -428,38 +424,19 @@ export default function EscapeRoomScreen({ navigation, route }) {
           </View>
         ) : null}
 
-        {/* Hint flutuante quando item está selecionado */}
         {selectedId ? (
-          <View style={[styles.selectionHint, { borderColor: accent }]}>
+          <View pointerEvents="none" style={[styles.selectionHint, { borderColor: accent }]}>
             <Text style={[styles.selectionHintText, { color: accent }]}>
-              🎯  Toque num objeto para usar o item
+              🎯  Toque num objeto para usar este item
             </Text>
           </View>
         ) : null}
 
-        {/* Hotspots */}
-        {room.hotspots.map(h => {
-          const state = hotspotState(h);
-          // Halo dourado aparece quando o item selecionado combina com este
-          // hotspot E ele ainda precisa ser destravado (locked ou exit-sem-aberto).
-          const notYetUnlocked = !unlocked.includes(h.id) && !solved.includes(h.id);
-          const compatible = !!selectedId
-            && itemMatches(h, selectedId)
-            && notYetUnlocked;
-          return (
-            <Hotspot
-              key={h.id}
-              hotspot={h}
-              x={h.x * SW}
-              y={h.y * mapAreaH}
-              state={state}
-              compatible={compatible}
-              accentColor={accent}
-              onPress={handleHotspotPress}
-            />
-          );
-        })}
-      </ImageBackground>
+        {/* Indicador discreto de "há mais para rolar" */}
+        <View pointerEvents="none" style={styles.scrollHint}>
+          <Text style={styles.scrollHintText}>▾</Text>
+        </View>
+      </View>
 
       {/* ── Inventário ────────────────────────────────────────────────── */}
       <InventoryBar
@@ -470,7 +447,7 @@ export default function EscapeRoomScreen({ navigation, route }) {
         onSelectItem={(id) => setSelectedId(id)}
       />
 
-      {/* ── Modal teaser do hotspot locked ────────────────────────────── */}
+      {/* ── Modal teaser do hotspot ainda bloqueado ───────────────────── */}
       <Modal
         transparent
         visible={!!activeHotspot && activeHotspot._lockedTeaser && !showPuzzle && !showReveal}
@@ -480,46 +457,16 @@ export default function EscapeRoomScreen({ navigation, route }) {
         <View style={styles.overlay}>
           <View style={[styles.card, { borderColor: accent }]}>
             <Text style={[styles.cardTitle, { color: accent }]}>
-              🔒  {activeHotspot?.labelPt}
+              {activeHotspot?.emoji}  {activeHotspot?.labelPt}
             </Text>
             <Text style={styles.cardBody}>
-              {activeHotspot?.initialMessage || 'Algo aqui está trancado. Talvez um item abra.'}
+              {activeHotspot?.initialMessage || 'Você examina o objeto, mas nada acontece.'}
             </Text>
-
-            {/* Lista de itens requeridos (útil em portas multi-item) */}
-            {activeHotspot?.useItem ? (() => {
-              const need = Array.isArray(activeHotspot.useItem) ? activeHotspot.useItem : [activeHotspot.useItem];
-              if (need.length <= 1) return null;
-              return (
-                <View style={[styles.requireList, { borderColor: accent + '33' }]}>
-                  <Text style={[styles.requireTitle, { color: accent }]}>
-                    REQUER
-                  </Text>
-                  {need.map(id => {
-                    const owned = hasItem(id);
-                    const item = inventory.find(i => i.id === id);
-                    return (
-                      <View key={id} style={styles.requireRow}>
-                        <Text style={[styles.requireIcon, !owned && { color: '#777' }]}>
-                          {owned ? '✓' : '○'}
-                        </Text>
-                        <Text style={[styles.requireText, !owned && styles.requireTextMissing]}>
-                          {item ? `${item.emoji} ${item.label}` : '(item a descobrir)'}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              );
-            })() : null}
-
             <TouchableOpacity
               style={[styles.cardBtn, { backgroundColor: accent + '22', borderColor: accent, alignSelf: 'center' }]}
               onPress={() => setActiveHotspot(null)}
             >
-              <Text style={styles.cardBtnText}>
-                {activeHotspot?.isExit ? 'Voltar a explorar' : 'Vou procurar'}
-              </Text>
+              <Text style={styles.cardBtnText}>Continuar explorando</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -664,13 +611,27 @@ const styles = StyleSheet.create({
   },
   fleeBtnText: { color: '#888', fontSize: 16, fontWeight: 'bold' },
 
-  // Map area
-  mapArea: { flex: 1, position: 'relative' },
-  mapBackgroundImage: { opacity: 0.9 },
+  // Map area (agora com scroll)
+  mapWrapper: { flex: 1, position: 'relative', overflow: 'hidden' },
+  mapScroll:  { flex: 1 },
+  mapSceneFull: { flex: 1, position: 'relative' },
+  mapBackgroundImage: { opacity: 0.92 },
   vignette: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.15)',
+    backgroundColor: 'rgba(0,0,0,0.18)',
   },
+  // Seta "▾" discreta no canto inferior direito sugerindo scroll
+  scrollHint: {
+    position: 'absolute',
+    right: 12, bottom: 12,
+    width: 26, height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  scrollHintText: { color: '#ccc', fontSize: 14, lineHeight: 18 },
 
   // Toast
   toast: {
@@ -781,25 +742,4 @@ const styles = StyleSheet.create({
   unlockBannerLabel: { fontSize: 11, fontWeight: 'bold', letterSpacing: 1, marginBottom: 6 },
 
   hintCount: { color: '#c8a96e', fontSize: 11, textAlign: 'center', marginBottom: 10, fontStyle: 'italic' },
-
-  // Lista de requisitos (ex.: porta pede 2 itens)
-  requireList: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    marginBottom: 14,
-  },
-  requireTitle: {
-    fontSize: 10, fontWeight: 'bold', letterSpacing: 1.5, marginBottom: 6,
-  },
-  requireRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 2,
-  },
-  requireIcon: { color: '#4caf50', fontSize: 14, fontWeight: 'bold', width: 14 },
-  requireText: { color: '#fff', fontSize: 13 },
-  requireTextMissing: { color: '#888', textDecorationLine: 'line-through' },
 });
