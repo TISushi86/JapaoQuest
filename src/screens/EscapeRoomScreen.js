@@ -173,9 +173,15 @@ export default function EscapeRoomScreen({ navigation, route }) {
           setShowReveal(true);
           return;
         }
-        // Senão abre reveals/puzzle
+        // Senão: abre reveals/success/puzzle.
+        // Regra: se tem texto (reveals OU useItemSuccess), mostra o modal com
+        // esse texto primeiro; só depois o jogador toca em "Investigar" para ir
+        // ao puzzle. Assim o texto de destrancar (que pode conter a pista do
+        // puzzle, como as direções da janela) nunca é pulado.
         setActiveHotspot({ ...h, _justUnlocked: true });
-        if (!h.reveals && h.puzzle) setShowPuzzle(true);
+        if (!h.reveals && !h.useItemSuccess && h.puzzle) {
+          setShowPuzzle(true);
+        }
         return;
       }
 
@@ -186,24 +192,16 @@ export default function EscapeRoomScreen({ navigation, route }) {
     }
 
     // Cenário 2: clique sem item selecionado
-    if (state === 'locked') {
-      // Mostra mensagem inicial
+    // Hotspot que ainda precisa ser destravado (inclui porta final):
+    // mostra o modal teaser com mensagem explicativa.
+    if (h.useItem && !unlocked.includes(h.id)) {
       setActiveHotspot({ ...h, _lockedTeaser: true });
-      return;
-    }
-
-    // Hotspot idle ou exit (sem selectedId): abrir
-    if (h.isExit) {
-      // Porta só abre com os itens certos
-      showToast(h.initialMessage || 'A porta está trancada.', 'info');
       return;
     }
 
     setActiveHotspot(h);
     if (!h.reveals && h.puzzle) {
       setShowPuzzle(true);
-    } else if (h.ambientOnly && solved.includes(h.id)) {
-      // Clicar em ambient resolvido só reabre o reveals
     }
   };
 
@@ -442,7 +440,12 @@ export default function EscapeRoomScreen({ navigation, route }) {
         {/* Hotspots */}
         {room.hotspots.map(h => {
           const state = hotspotState(h);
-          const compatible = selectedId && itemMatches(h, selectedId) && state === 'locked';
+          // Halo dourado aparece quando o item selecionado combina com este
+          // hotspot E ele ainda precisa ser destravado (locked ou exit-sem-aberto).
+          const notYetUnlocked = !unlocked.includes(h.id) && !solved.includes(h.id);
+          const compatible = !!selectedId
+            && itemMatches(h, selectedId)
+            && notYetUnlocked;
           return (
             <Hotspot
               key={h.id}
@@ -482,11 +485,41 @@ export default function EscapeRoomScreen({ navigation, route }) {
             <Text style={styles.cardBody}>
               {activeHotspot?.initialMessage || 'Algo aqui está trancado. Talvez um item abra.'}
             </Text>
+
+            {/* Lista de itens requeridos (útil em portas multi-item) */}
+            {activeHotspot?.useItem ? (() => {
+              const need = Array.isArray(activeHotspot.useItem) ? activeHotspot.useItem : [activeHotspot.useItem];
+              if (need.length <= 1) return null;
+              return (
+                <View style={[styles.requireList, { borderColor: accent + '33' }]}>
+                  <Text style={[styles.requireTitle, { color: accent }]}>
+                    REQUER
+                  </Text>
+                  {need.map(id => {
+                    const owned = hasItem(id);
+                    const item = inventory.find(i => i.id === id);
+                    return (
+                      <View key={id} style={styles.requireRow}>
+                        <Text style={[styles.requireIcon, !owned && { color: '#777' }]}>
+                          {owned ? '✓' : '○'}
+                        </Text>
+                        <Text style={[styles.requireText, !owned && styles.requireTextMissing]}>
+                          {item ? `${item.emoji} ${item.label}` : '(item a descobrir)'}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              );
+            })() : null}
+
             <TouchableOpacity
               style={[styles.cardBtn, { backgroundColor: accent + '22', borderColor: accent, alignSelf: 'center' }]}
               onPress={() => setActiveHotspot(null)}
             >
-              <Text style={styles.cardBtnText}>Vou procurar</Text>
+              <Text style={styles.cardBtnText}>
+                {activeHotspot?.isExit ? 'Voltar a explorar' : 'Vou procurar'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -748,4 +781,25 @@ const styles = StyleSheet.create({
   unlockBannerLabel: { fontSize: 11, fontWeight: 'bold', letterSpacing: 1, marginBottom: 6 },
 
   hintCount: { color: '#c8a96e', fontSize: 11, textAlign: 'center', marginBottom: 10, fontStyle: 'italic' },
+
+  // Lista de requisitos (ex.: porta pede 2 itens)
+  requireList: {
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    marginBottom: 14,
+  },
+  requireTitle: {
+    fontSize: 10, fontWeight: 'bold', letterSpacing: 1.5, marginBottom: 6,
+  },
+  requireRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 2,
+  },
+  requireIcon: { color: '#4caf50', fontSize: 14, fontWeight: 'bold', width: 14 },
+  requireText: { color: '#fff', fontSize: 13 },
+  requireTextMissing: { color: '#888', textDecorationLine: 'line-through' },
 });
