@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Dimensions, StatusBar, ScrollView, Animated, Modal, Alert,
+  Dimensions, StatusBar, ScrollView, Modal, Alert,
+  ImageBackground,
 } from 'react-native';
 import { getRoomById } from '../data/escapeRooms';
 import { usePlayer } from '../context/PlayerContext';
@@ -19,34 +20,45 @@ const MAX_HINTS = 3;
 /**
  * Motor da Câmara da Memória (escape room).
  *
- * Fluxo de fases:
- *  'intro'   – mostra texto de abertura da sala
- *  'playing' – sala interativa (hotspots)
- *  'memory'  – mostra MemoryReveal ao vencer
- *  'defeat'  – HP zerado, tela de fim
+ * Fases:
+ *  'intro'   – texto de abertura da sala (typewriter curto)
+ *  'playing' – sala interativa
+ *  'memory'  – MemoryReveal ao escapar
+ *  'defeat'  – HP zerado
+ *
+ * Mecânica central (playing):
+ *  Estado local por hotspot em `unlocked` (Set de ids) e `solved` (Set).
+ *  Um hotspot com `useItem` começa "locked". Para destravá-lo, o jogador:
+ *    1. Seleciona um item do inventário (selectedItemId).
+ *    2. Toca no hotspot alvo.
+ *    3. Se o item ID bate com useItem (ou satisfaz todos se array), destrava.
+ *    4. Porta de saída (isExit): ao destravar, vai direto para a memória.
+ *  Um hotspot `ambientOnly` nunca gera puzzle nem item — só mostra reveals.
+ *  Um hotspot normal (sem useItem) abre direto ao tocar.
  */
 export default function EscapeRoomScreen({ navigation, route }) {
   const roomId = route.params?.roomId;
-  const fromStory = route.params?.fromStory === true;
   const room = useMemo(() => getRoomById(roomId), [roomId]);
 
   const { gainXP, completeEscapeRoom, devMode } = usePlayer();
 
-  const [phase,   setPhase]   = useState('intro');   // intro | playing | memory | defeat
-  const [hp,      setHp]      = useState(MAX_HP);
-  const [hints,   setHints]   = useState(MAX_HINTS);
-  const [solved,  setSolved]  = useState([]);        // ids de hotspots resolvidos
-  const [unlocked, setUnlocked] = useState([]);      // ids de hotspots destravados dinamicamente
-  const [inventory, setInventory] = useState([]);    // [{ id, emoji, label }, ...]
+  const [phase,       setPhase]       = useState('intro');
+  const [hp,          setHp]          = useState(MAX_HP);
+  const [hints,       setHints]       = useState(MAX_HINTS);
+  const [solved,      setSolved]      = useState([]);
+  const [unlocked,    setUnlocked]    = useState([]);
+  const [inventory,   setInventory]   = useState([]);
+  const [selectedId,  setSelectedId]  = useState(null);
+
+  const [toast, setToast] = useState(null);             // feedback rápido
   const [activeHotspot, setActiveHotspot] = useState(null);
   const [showPuzzle, setShowPuzzle] = useState(false);
   const [showReveal, setShowReveal] = useState(false);
-  const [showHint,   setShowHint]   = useState(false);
-  const [hintText,   setHintText]   = useState('');
+  const [showHint, setShowHint] = useState(false);
+  const [hintText, setHintText] = useState('');
   const [rankUpModal, setRankUpModal] = useState(null);
-  const [mapAreaH, setMapAreaH] = useState(SH * 0.7);
+  const [mapAreaH, setMapAreaH] = useState(SH * 0.6);
 
-  // Se sala não encontrada
   if (!room) {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -58,7 +70,6 @@ export default function EscapeRoomScreen({ navigation, route }) {
     );
   }
 
-  // Sala com stub (N4-N1 ainda não implementadas)
   if (room.stub) {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -74,58 +85,151 @@ export default function EscapeRoomScreen({ navigation, route }) {
 
   const accent = room.accentColor || '#ffd700';
 
-  // Hotspots inicialmente destravados: aqueles sem flag `locked` ou sem requires
-  const initiallyUnlocked = useMemo(
-    () => room.hotspots.filter(h => !h.locked).map(h => h.id),
-    [room]
-  );
+  // ─── Helpers de estado ──────────────────────────────────────────────────
 
-  useEffect(() => {
-    setUnlocked(initiallyUnlocked);
-  }, [initiallyUnlocked]);
+  const hasItem = (id) => inventory.some(i => i.id === id);
 
-  // ── Computa estado visual de um hotspot ─────────────────────────────────
-  const getState = (h) => {
+  const itemMatches = (hotspot, itemId) => {
+    if (!hotspot.useItem || !itemId) return false;
+    const need = Array.isArray(hotspot.useItem) ? hotspot.useItem : [hotspot.useItem];
+    return need.includes(itemId);
+  };
+
+  const allRequiredItemsInInventory = (hotspot) => {
+    if (!hotspot.useItem) return true;
+    const need = Array.isArray(hotspot.useItem) ? hotspot.useItem : [hotspot.useItem];
+    return need.every(id => hasItem(id));
+  };
+
+  const hotspotState = (h) => {
     if (solved.includes(h.id)) return 'solved';
-    if (!unlocked.includes(h.id)) return 'locked';
-    // Tem requires? Se não atende, mostra locked
-    if (h.requires && h.requires.length > 0) {
-      const hasAll = h.requires.every(req => inventory.find(i => i.id === req));
-      if (!hasAll) return 'locked';
-    }
-    return 'available';
+    if (h.isExit)              return 'exit';
+    if (!h.useItem)            return 'idle';
+    if (unlocked.includes(h.id)) return 'idle';
+    return 'locked';
   };
 
-  // ── Clique num hotspot ──────────────────────────────────────────────────
+  // Toast efêmero no topo da sala
+  const showToast = (text, tone = 'info') => {
+    setToast({ text, tone });
+    setTimeout(() => setToast(null), 2600);
+  };
+
+  // ─── Clique num hotspot ─────────────────────────────────────────────────
   const handleHotspotPress = (h) => {
-    const state = getState(h);
-    if (state === 'solved') return;
+    const state = hotspotState(h);
+    if (state === 'solved' && !h.ambientOnly) return;
+
+    // Cenário 1: jogador tem item selecionado e clica num hotspot
+    if (selectedId) {
+      if (state === 'solved') {
+        showToast('Já resolvido.', 'info');
+        setSelectedId(null);
+        return;
+      }
+
+      // Hotspot ambiental não aceita itens
+      if (h.ambientOnly) {
+        showToast(h.wrongItemMessage || 'Isso não serve aqui.', 'wrong');
+        setSelectedId(null);
+        return;
+      }
+
+      // Hotspot sem useItem: não aceita itens
+      if (!h.useItem) {
+        showToast(h.wrongItemMessage || 'Este objeto não precisa disso.', 'wrong');
+        setSelectedId(null);
+        return;
+      }
+
+      // Hotspot já destravado — item irrelevante
+      if (unlocked.includes(h.id)) {
+        showToast('Já está aberto.', 'info');
+        setSelectedId(null);
+        return;
+      }
+
+      // Item correto?
+      if (itemMatches(h, selectedId)) {
+        // Para itens em array (porta final), exige ter TODOS no inventário
+        if (!allRequiredItemsInInventory(h)) {
+          const missing = (Array.isArray(h.useItem) ? h.useItem : [h.useItem])
+            .filter(id => !hasItem(id));
+          const missingItem = inventory.find(i => missing.includes(i.id));
+          showToast(
+            `Ainda falta algo. A ${h.labelPt.toLowerCase()} pede mais de uma coisa.`,
+            'wrong',
+          );
+          setSelectedId(null);
+          return;
+        }
+        // Destrava!
+        setUnlocked(prev => prev.includes(h.id) ? prev : [...prev, h.id]);
+        setSelectedId(null);
+        // Se é exit, ao destravar dispara a saída direto
+        if (h.isExit) {
+          setSolved(prev => prev.includes(h.id) ? prev : [...prev, h.id]);
+          setActiveHotspot(h);
+          setShowReveal(true);
+          return;
+        }
+        // Senão abre reveals/puzzle
+        setActiveHotspot({ ...h, _justUnlocked: true });
+        if (!h.reveals && h.puzzle) setShowPuzzle(true);
+        return;
+      }
+
+      // Item incorreto
+      showToast(h.wrongItemMessage || 'Isso não serve aqui.', 'wrong');
+      setSelectedId(null);
+      return;
+    }
+
+    // Cenário 2: clique sem item selecionado
     if (state === 'locked') {
-      const msg = h.requiresMessage || 'Este lugar ainda está selado. Procure algo que possa abri-lo.';
-      Alert.alert('🔒 Bloqueado', msg);
+      // Mostra mensagem inicial
+      setActiveHotspot({ ...h, _lockedTeaser: true });
       return;
     }
-    // Porta de saída: testa condição de vitória antes de "resolver"
+
+    // Hotspot idle ou exit (sem selectedId): abrir
     if (h.isExit) {
-      // Já destravada por requires — considera vitória
-      handleExit(h);
+      // Porta só abre com os itens certos
+      showToast(h.initialMessage || 'A porta está trancada.', 'info');
       return;
     }
+
     setActiveHotspot(h);
-    // Se tem texto de descoberta, o modal de reveals é exibido primeiro
-    // (e a partir dele o jogador abre o puzzle). Se não tem reveals:
-    //  - com puzzle: abre direto
-    //  - sem puzzle: resolve imediatamente (item automático)
-    if (!h.reveals) {
-      if (h.puzzle) setShowPuzzle(true);
-      else handleSolved(h, { skipPuzzle: true });
+    if (!h.reveals && h.puzzle) {
+      setShowPuzzle(true);
+    } else if (h.ambientOnly && solved.includes(h.id)) {
+      // Clicar em ambient resolvido só reabre o reveals
     }
   };
 
-  // ── Jogador resolveu o enigma ───────────────────────────────────────────
+  // ─── Resolução do puzzle ────────────────────────────────────────────────
   const handlePuzzleSolved = () => {
     setShowPuzzle(false);
-    if (activeHotspot) handleSolved(activeHotspot);
+    if (!activeHotspot) return;
+    const h = activeHotspot;
+
+    // Marca como resolvido
+    setSolved(prev => prev.includes(h.id) ? prev : [...prev, h.id]);
+
+    // Adiciona itens ao inventário
+    if (h.rewardItems?.length) {
+      setInventory(prev => {
+        const existing = new Set(prev.map(i => i.id));
+        const toAdd = h.rewardItems.filter(ri => !existing.has(ri.id));
+        if (toAdd.length) {
+          const names = toAdd.map(i => `${i.emoji} ${i.label}`).join(', ');
+          setTimeout(() => showToast(`Você ganhou: ${names}`, 'win'), 200);
+        }
+        return [...prev, ...toAdd];
+      });
+    }
+
+    setActiveHotspot(null);
   };
 
   const handlePuzzleFailed = () => {
@@ -136,39 +240,15 @@ export default function EscapeRoomScreen({ navigation, route }) {
     if (newHp <= 0) setPhase('defeat');
   };
 
-  const handleSolved = (h, { skipPuzzle } = {}) => {
-    // Marca como resolvido
-    setSolved(prev => prev.includes(h.id) ? prev : [...prev, h.id]);
-
-    // Adiciona itens ao inventário
-    if (h.rewardItems?.length) {
-      setInventory(prev => {
-        const existing = new Set(prev.map(i => i.id));
-        const toAdd = h.rewardItems.filter(ri => !existing.has(ri.id));
-        return [...prev, ...toAdd];
-      });
+  // ─── Ambient "resolvido" ao fechar (para marcar como lido) ─────────────
+  const closeReveal = () => {
+    if (activeHotspot?.ambientOnly) {
+      setSolved(prev => prev.includes(activeHotspot.id) ? prev : [...prev, activeHotspot.id]);
     }
-
-    // Destrava outros hotspots
-    if (h.unlockHotspots?.length) {
-      setUnlocked(prev => {
-        const set = new Set(prev);
-        h.unlockHotspots.forEach(id => set.add(id));
-        return [...set];
-      });
-    }
-
     setActiveHotspot(null);
   };
 
-  // ── Porta de saída — vitória ────────────────────────────────────────────
-  const handleExit = (door) => {
-    // Itens necessários já checados em getState. Se chegou aqui, abriu.
-    setSolved(prev => prev.includes(door.id) ? prev : [...prev, door.id]);
-    setShowReveal(true);
-  };
-
-  // ── Fim da cena de memória ──────────────────────────────────────────────
+  // ─── Fim da cena de memória ─────────────────────────────────────────────
   const handleMemoryFinish = () => {
     completeEscapeRoom(room.id);
     const xpReward = room.memory?.xpReward ?? 100;
@@ -177,7 +257,6 @@ export default function EscapeRoomScreen({ navigation, route }) {
       else navigation.goBack();
     });
     setShowReveal(false);
-    setPhase('memory'); // fica em tela de agradecimento até onDismiss
   };
 
   const handleRankUpDismiss = () => {
@@ -185,28 +264,42 @@ export default function EscapeRoomScreen({ navigation, route }) {
     navigation.goBack();
   };
 
-  // ── Dica do Eimei ───────────────────────────────────────────────────────
+  // ─── Dica do Eimei ──────────────────────────────────────────────────────
   const useHint = () => {
     if (hints <= 0) {
       Alert.alert('Sem dicas', 'Eimei já revelou todos os segredos que podia.');
       return;
     }
-    // Encontra primeiro hotspot não-resolvido disponível para dar dica
-    const next = room.hotspots.find(h => !solved.includes(h.id) && getState(h) === 'available');
-    const locked = room.hotspots.find(h => !solved.includes(h.id) && getState(h) === 'locked');
 
-    let text = 'Tudo que você precisa está ao seu redor. Observe bem.';
-    if (next) {
-      text = `Observe "${next.labelPt}". ${next.puzzle?.hintPt || next.reveals?.split('\n')[0] || 'Talvez haja um enigma ali.'}`;
-    } else if (locked) {
-      text = `A porta ou outro elemento aguarda um item. Tente combinar o que já coletou.`;
+    // Estratégia: tenta dar dica sobre o próximo passo
+    // 1. Se tem item no inventário ainda não usado, indica onde usar
+    const unusedItem = inventory.find(item => {
+      return room.hotspots.some(h =>
+        !solved.includes(h.id) && !unlocked.includes(h.id) && itemMatches(h, item.id)
+      );
+    });
+    let text;
+    if (unusedItem) {
+      const target = room.hotspots.find(h =>
+        !solved.includes(h.id) && !unlocked.includes(h.id) && itemMatches(h, unusedItem.id)
+      );
+      text = `${unusedItem.emoji} "${unusedItem.label}" parece pertencer a algo... Talvez a ${target.labelPt.toLowerCase()}?`;
+    } else {
+      const nextFree = room.hotspots.find(h =>
+        !solved.includes(h.id) && !h.useItem && !h.ambientOnly
+      );
+      if (nextFree) {
+        text = `Investigue "${nextFree.labelPt}" — ${nextFree.puzzle?.hintPt || 'algo útil pode sair daí'}.`;
+      } else {
+        text = 'Observe cada objeto. Alguns são só atmosféricos — leia-os para relembrar. Outros guardam segredos.';
+      }
     }
+
     setHintText(text);
     setShowHint(true);
     setHints(h => h - 1);
   };
 
-  // ── Fugir da sala ───────────────────────────────────────────────────────
   const handleFlee = () => {
     Alert.alert(
       'Recuar da câmara',
@@ -214,40 +307,46 @@ export default function EscapeRoomScreen({ navigation, route }) {
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Recuar',   style: 'destructive', onPress: () => navigation.goBack() },
-      ]
+      ],
     );
   };
 
-  // ─── Renderização por fase ──────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  //  Render: fases especiais
+  // ══════════════════════════════════════════════════════════════════════════
 
-  // ── Intro: texto de abertura ────────────────────────────────────────────
   if (phase === 'intro') {
     return (
-      <TouchableOpacity
-        activeOpacity={1}
-        style={[styles.container, styles.centered, { borderColor: accent + '33' }]}
-        onPress={() => setPhase('playing')}
+      <ImageBackground
+        source={room.backgroundImage}
+        style={styles.container}
+        imageStyle={{ opacity: 0.55 }}
       >
-        <StatusBar hidden />
-        <Text style={styles.introIcon}>{room.icon}</Text>
-        <FuriganaText
-          text={room.titleJp}
-          fontSize={32}
-          color={accent}
-          furiganaColor={accent + 'aa'}
-          style={{ justifyContent: 'center', marginBottom: 6 }}
-        />
-        <Text style={[styles.introTitle, { color: accent }]}>{room.title}</Text>
-        <Text style={styles.introLevel}>JLPT {room.jlptLevel}</Text>
-        <View style={[styles.introBox, { borderColor: accent + '44' }]}>
-          <Text style={styles.introText}>{room.intro}</Text>
-        </View>
-        <Text style={[styles.tapHint, { color: accent }]}>▶  Tocar para entrar</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          activeOpacity={0.95}
+          style={[styles.introOverlay, { borderColor: accent + '55' }]}
+          onPress={() => setPhase('playing')}
+        >
+          <StatusBar hidden />
+          <Text style={styles.introIcon}>{room.icon}</Text>
+          <FuriganaText
+            text={room.titleJp}
+            fontSize={32}
+            color={accent}
+            furiganaColor={accent + 'aa'}
+            style={{ justifyContent: 'center', marginBottom: 6 }}
+          />
+          <Text style={[styles.introTitle, { color: accent }]}>{room.title}</Text>
+          <Text style={styles.introLevel}>JLPT {room.jlptLevel}</Text>
+          <View style={[styles.introBox, { borderColor: accent + '66' }]}>
+            <Text style={styles.introText}>{room.intro}</Text>
+          </View>
+          <Text style={[styles.tapHint, { color: accent }]}>▶  Tocar para entrar</Text>
+        </TouchableOpacity>
+      </ImageBackground>
     );
   }
 
-  // ── Defeat ──────────────────────────────────────────────────────────────
   if (phase === 'defeat') {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -268,26 +367,26 @@ export default function EscapeRoomScreen({ navigation, route }) {
     );
   }
 
-  // ── Memory (aguardando MemoryReveal ou rank up) ─────────────────────────
-  if (phase === 'memory' && !showReveal && !rankUpModal) {
-    // Saiu direto (rare fallback)
-    navigation.goBack();
-    return null;
-  }
+  // ══════════════════════════════════════════════════════════════════════════
+  //  Render: sala interativa
+  // ══════════════════════════════════════════════════════════════════════════
 
-  // ── Playing: cenário ────────────────────────────────────────────────────
-  const solvedCount = solved.filter(id => id !== 'hs-porta').length; // porta não conta
-  const totalPuzzles = room.hotspots.filter(h => !h.isExit).length;
+  const solvedCount = solved.filter(id => {
+    const h = room.hotspots.find(x => x.id === id);
+    return h && !h.isExit && !h.ambientOnly;
+  }).length;
+  const totalPuzzles = room.hotspots.filter(h => !h.isExit && !h.ambientOnly).length;
 
   return (
     <View style={styles.container}>
       <StatusBar hidden />
 
-      {/* ── HUD Superior ───────────────────────────────────────────────── */}
-      <View style={[styles.hud, { borderBottomColor: accent + '44' }]}>
+      {/* ── HUD Superior ──────────────────────────────────────────────── */}
+      <View style={[styles.hud, { borderBottomColor: accent + '55' }]}>
         <View style={styles.hudLeft}>
           <Text style={styles.hudHearts}>
-            {'♥ '.repeat(hp).trim() + ' ♡'.repeat(MAX_HP - hp)}
+            {'♥'.repeat(hp)}
+            <Text style={{ color: '#3a3a3a' }}>{'♡'.repeat(MAX_HP - hp)}</Text>
           </Text>
         </View>
         <View style={styles.hudCenter}>
@@ -296,123 +395,157 @@ export default function EscapeRoomScreen({ navigation, route }) {
             <Text style={[styles.hudTitle, { color: accent }]} numberOfLines={1}>
               {room.title}
             </Text>
-            <Text style={styles.hudSub}>JLPT {room.jlptLevel}</Text>
+            <Text style={styles.hudSub}>JLPT {room.jlptLevel} · {solvedCount}/{totalPuzzles}</Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.hintBtn} onPress={useHint}>
-          <Text style={styles.hintBtnIcon}>💡</Text>
-          <Text style={[styles.hintBtnText, { color: accent }]}>{hints}</Text>
-        </TouchableOpacity>
+        <View style={styles.hudRight}>
+          <TouchableOpacity style={[styles.iconBtn, { borderColor: accent + '66' }]} onPress={useHint}>
+            <Text style={styles.iconBtnEmoji}>💡</Text>
+            <Text style={[styles.iconBtnCount, { color: accent }]}>{hints}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.fleeBtn} onPress={handleFlee}>
+            <Text style={styles.fleeBtnText}>✕</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* ── Área da sala (hotspots) ───────────────────────────────────── */}
-      <View
+      {/* ── Cenário imersivo (ImageBackground + hotspots) ─────────────── */}
+      <ImageBackground
+        source={room.backgroundImage}
         style={styles.mapArea}
+        imageStyle={styles.mapBackgroundImage}
         onLayout={e => setMapAreaH(e.nativeEvent.layout.height)}
       >
-        {/* Linhas conectoras entre hotspots com dependência (unlockHotspots) */}
-        {room.hotspots.map((from) => {
-          if (!from.unlockHotspots?.length) return null;
-          return from.unlockHotspots.map(toId => {
-            const to = room.hotspots.find(h => h.id === toId);
-            if (!to) return null;
-            const fx = from.x * SW;
-            const fy = from.y * mapAreaH;
-            const tx = to.x * SW;
-            const ty = to.y * mapAreaH;
-            const dx = tx - fx;
-            const dy = ty - fy;
-            const len = Math.sqrt(dx * dx + dy * dy);
-            const ang = Math.atan2(dy, dx) * 180 / Math.PI;
-            const isFromSolved = solved.includes(from.id);
-            return (
-              <View
-                key={`line-${from.id}-${toId}`}
-                pointerEvents="none"
-                style={{
-                  position: 'absolute',
-                  left: (fx + tx) / 2 - len / 2,
-                  top: (fy + ty) / 2 - 0.5,
-                  width: len,
-                  height: 1.5,
-                  backgroundColor: isFromSolved ? accent + '66' : accent + '15',
-                  transform: [{ rotate: `${ang}deg` }],
-                }}
-              />
-            );
-          });
+        {/* Gradiente escuro de vinheta para legibilidade dos hotspots */}
+        <View style={styles.vignette} pointerEvents="none" />
+
+        {/* Toast de feedback rápido */}
+        {toast ? (
+          <View style={[
+            styles.toast,
+            toast.tone === 'wrong' && styles.toastWrong,
+            toast.tone === 'win'   && styles.toastWin,
+          ]}>
+            <Text style={styles.toastText}>{toast.text}</Text>
+          </View>
+        ) : null}
+
+        {/* Hint flutuante quando item está selecionado */}
+        {selectedId ? (
+          <View style={[styles.selectionHint, { borderColor: accent }]}>
+            <Text style={[styles.selectionHintText, { color: accent }]}>
+              🎯  Toque num objeto para usar o item
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Hotspots */}
+        {room.hotspots.map(h => {
+          const state = hotspotState(h);
+          const compatible = selectedId && itemMatches(h, selectedId) && state === 'locked';
+          return (
+            <Hotspot
+              key={h.id}
+              hotspot={h}
+              x={h.x * SW}
+              y={h.y * mapAreaH}
+              state={state}
+              compatible={compatible}
+              accentColor={accent}
+              onPress={handleHotspotPress}
+            />
+          );
         })}
+      </ImageBackground>
 
-        {room.hotspots.map(h => (
-          <Hotspot
-            key={h.id}
-            hotspot={h}
-            x={h.x * SW}
-            y={h.y * mapAreaH}
-            state={getState(h)}
-            accentColor={accent}
-            onPress={handleHotspotPress}
-          />
-        ))}
-      </View>
-
-      {/* ── Botão de fuga ──────────────────────────────────────────────── */}
-      <TouchableOpacity style={styles.fleeBtn} onPress={handleFlee}>
-        <Text style={styles.fleeBtnText}>Recuar</Text>
-      </TouchableOpacity>
-
-      {/* ── Inventário e contador ─────────────────────────────────────── */}
+      {/* ── Inventário ────────────────────────────────────────────────── */}
       <InventoryBar
         items={inventory}
+        selectedId={selectedId}
         accentColor={accent}
         puzzleCount={`${solvedCount}/${totalPuzzles}`}
-        onItemPress={(item) => Alert.alert(item.label, `Item coletado: ${item.emoji} ${item.label}`)}
+        onSelectItem={(id) => setSelectedId(id)}
       />
 
-      {/* ── Modal de pista/reveal antes do puzzle ─────────────────────── */}
-      {activeHotspot && !showPuzzle && !showReveal && activeHotspot.reveals && !solved.includes(activeHotspot.id) ? (
-        <Modal transparent visible animationType="fade" onRequestClose={() => setActiveHotspot(null)}>
-          <View style={styles.overlay}>
-            <View style={[styles.card, { borderColor: accent }]}>
-              <Text style={[styles.cardTitle, { color: accent }]}>
-                {activeHotspot.emoji} {activeHotspot.labelPt}
-              </Text>
-              <ScrollView style={{ maxHeight: 240 }}>
+      {/* ── Modal teaser do hotspot locked ────────────────────────────── */}
+      <Modal
+        transparent
+        visible={!!activeHotspot && activeHotspot._lockedTeaser && !showPuzzle && !showReveal}
+        animationType="fade"
+        onRequestClose={() => setActiveHotspot(null)}
+      >
+        <View style={styles.overlay}>
+          <View style={[styles.card, { borderColor: accent }]}>
+            <Text style={[styles.cardTitle, { color: accent }]}>
+              🔒  {activeHotspot?.labelPt}
+            </Text>
+            <Text style={styles.cardBody}>
+              {activeHotspot?.initialMessage || 'Algo aqui está trancado. Talvez um item abra.'}
+            </Text>
+            <TouchableOpacity
+              style={[styles.cardBtn, { backgroundColor: accent + '22', borderColor: accent, alignSelf: 'center' }]}
+              onPress={() => setActiveHotspot(null)}
+            >
+              <Text style={styles.cardBtnText}>Vou procurar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Modal de reveals / descoberta ─────────────────────────────── */}
+      <Modal
+        transparent
+        visible={!!activeHotspot && !activeHotspot._lockedTeaser && !showPuzzle && !showReveal && !!(activeHotspot.reveals || activeHotspot._justUnlocked)}
+        animationType="fade"
+        onRequestClose={closeReveal}
+      >
+        <View style={styles.overlay}>
+          <View style={[styles.card, { borderColor: accent }]}>
+            <Text style={[styles.cardTitle, { color: accent }]}>
+              {activeHotspot?.emoji}  {activeHotspot?.labelPt}
+            </Text>
+            <ScrollView style={{ maxHeight: 280 }}>
+              {activeHotspot?._justUnlocked && activeHotspot?.useItemSuccess ? (
+                <View style={[styles.unlockBanner, { borderColor: accent + '55' }]}>
+                  <Text style={[styles.unlockBannerLabel, { color: accent }]}>✓  Destravado</Text>
+                  <FuriganaText
+                    text={activeHotspot.useItemSuccess}
+                    fontSize={13}
+                    color="#e8e8e8"
+                    furiganaColor={accent}
+                    style={{ justifyContent: 'flex-start' }}
+                  />
+                </View>
+              ) : null}
+              {activeHotspot?.reveals ? (
                 <FuriganaText
                   text={activeHotspot.reveals}
                   fontSize={14}
                   color="#e8e8e8"
-                  furiganaColor="#90caf9"
+                  furiganaColor={accent}
                   style={{ justifyContent: 'flex-start' }}
                 />
-              </ScrollView>
-              <View style={styles.cardActions}>
+              ) : null}
+            </ScrollView>
+            <View style={styles.cardActions}>
+              <TouchableOpacity
+                style={[styles.cardBtn, styles.cardBtnSecondary]}
+                onPress={closeReveal}
+              >
+                <Text style={styles.cardBtnText}>Fechar</Text>
+              </TouchableOpacity>
+              {activeHotspot?.puzzle ? (
                 <TouchableOpacity
-                  style={[styles.cardBtn, styles.cardBtnSecondary]}
-                  onPress={() => setActiveHotspot(null)}
+                  style={[styles.cardBtn, { backgroundColor: accent + '22', borderColor: accent }]}
+                  onPress={() => setShowPuzzle(true)}
                 >
-                  <Text style={styles.cardBtnText}>Fechar</Text>
+                  <Text style={styles.cardBtnText}>Investigar →</Text>
                 </TouchableOpacity>
-                {activeHotspot.puzzle ? (
-                  <TouchableOpacity
-                    style={[styles.cardBtn, { backgroundColor: accent + '33', borderColor: accent }]}
-                    onPress={() => setShowPuzzle(true)}
-                  >
-                    <Text style={styles.cardBtnText}>Investigar →</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    style={[styles.cardBtn, { backgroundColor: accent + '33', borderColor: accent }]}
-                    onPress={() => handleSolved(activeHotspot, { skipPuzzle: true })}
-                  >
-                    <Text style={styles.cardBtnText}>Ok</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+              ) : null}
             </View>
           </View>
-        </Modal>
-      ) : null}
+        </View>
+      </Modal>
 
       {/* ── Modal do enigma ───────────────────────────────────────────── */}
       <PuzzleModal
@@ -424,15 +557,15 @@ export default function EscapeRoomScreen({ navigation, route }) {
         onClose={() => { setShowPuzzle(false); setActiveHotspot(null); }}
       />
 
-      {/* ── Modal de dica do Eimei ────────────────────────────────────── */}
+      {/* ── Modal de dica ─────────────────────────────────────────────── */}
       <Modal transparent visible={showHint} animationType="fade" onRequestClose={() => setShowHint(false)}>
         <View style={styles.overlay}>
           <View style={[styles.card, { borderColor: accent }]}>
-            <Text style={[styles.cardTitle, { color: accent }]}>🧙 Eimei sussurra</Text>
-            <Text style={styles.hintBody}>{hintText}</Text>
-            <Text style={styles.hintCost}>Dicas restantes: {hints}</Text>
+            <Text style={[styles.cardTitle, { color: accent }]}>🧙  Eimei sussurra</Text>
+            <Text style={styles.cardBody}>{hintText}</Text>
+            <Text style={styles.hintCount}>Dicas restantes: {hints}</Text>
             <TouchableOpacity
-              style={[styles.cardBtn, { backgroundColor: accent + '33', borderColor: accent, alignSelf: 'center' }]}
+              style={[styles.cardBtn, { backgroundColor: accent + '22', borderColor: accent, alignSelf: 'center' }]}
               onPress={() => setShowHint(false)}
             >
               <Text style={styles.cardBtnText}>Entendi</Text>
@@ -463,72 +596,98 @@ export default function EscapeRoomScreen({ navigation, route }) {
 
 // ─── Estilos ─────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a12' },
+  container: { flex: 1, backgroundColor: '#05070d' },
   centered:  { justifyContent: 'center', alignItems: 'center', padding: 24, gap: 14 },
   errorText: { color: '#f44336', fontSize: 16 },
   backLink:  { color: '#ffd700', fontSize: 15, marginTop: 10 },
 
-  // ── HUD
+  // HUD
   hud: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 44,
-    paddingHorizontal: 14,
-    paddingBottom: 10,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    borderBottomWidth: 1,
-    gap: 12,
+    flexDirection: 'row', alignItems: 'center',
+    paddingTop: 44, paddingHorizontal: 12,
+    paddingBottom: 10, backgroundColor: 'rgba(0,0,0,0.9)',
+    borderBottomWidth: 1, gap: 10,
   },
   hudLeft:    { flex: 1 },
-  hudHearts:  { color: '#f44336', fontSize: 18, letterSpacing: 3 },
+  hudHearts:  { color: '#f44336', fontSize: 18, letterSpacing: 2 },
   hudCenter:  { flex: 2, flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center' },
-  hudIcon:    { fontSize: 24 },
-  hudTitle:   { fontSize: 14, fontWeight: 'bold', letterSpacing: 0.5 },
-  hudSub:     { color: '#888', fontSize: 11 },
-  hintBtn:    {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
+  hudIcon:    { fontSize: 22 },
+  hudTitle:   { fontSize: 14, fontWeight: 'bold', letterSpacing: 0.3 },
+  hudSub:     { color: '#888', fontSize: 10 },
+  hudRight:   { flex: 1, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8 },
+  iconBtn: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: 14, borderWidth: 1,
     gap: 4,
   },
-  hintBtnIcon: { fontSize: 18 },
-  hintBtnText: { fontSize: 15, fontWeight: 'bold' },
-
-  // ── Área do mapa
-  mapArea: { flex: 1, position: 'relative' },
-
-  // ── Fuga
+  iconBtnEmoji: { fontSize: 14 },
+  iconBtnCount: { fontSize: 13, fontWeight: 'bold' },
   fleeBtn: {
-    position: 'absolute',
-    top: 48,
-    right: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#666',
-    zIndex: 10,
+    width: 30, height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  fleeBtnText: { color: '#aaa', fontSize: 12 },
+  fleeBtnText: { color: '#888', fontSize: 16, fontWeight: 'bold' },
 
-  // ── Intro
+  // Map area
+  mapArea: { flex: 1, position: 'relative' },
+  mapBackgroundImage: { opacity: 0.9 },
+  vignette: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+  },
+
+  // Toast
+  toast: {
+    position: 'absolute',
+    top: 14, alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.82)',
+    paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#888',
+    maxWidth: '90%',
+    zIndex: 50,
+  },
+  toastWrong: { borderColor: '#f44336', backgroundColor: 'rgba(60,0,0,0.85)' },
+  toastWin:   { borderColor: '#4caf50', backgroundColor: 'rgba(0,40,10,0.85)' },
+  toastText:  { color: '#fff', fontSize: 12 },
+
+  // Hint quando item selecionado
+  selectionHint: {
+    position: 'absolute',
+    top: 48, alignSelf: 'center',
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderRadius: 14, borderWidth: 1.5,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    zIndex: 40,
+  },
+  selectionHintText: { fontSize: 12, fontWeight: 'bold' },
+
+  // Intro
+  introOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    padding: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
   introIcon:  { fontSize: 72 },
   introTitle: { fontSize: 26, fontWeight: 'bold', marginTop: 6 },
   introLevel: { color: '#888', fontSize: 13, letterSpacing: 3 },
   introBox: {
     backgroundColor: 'rgba(0,0,0,0.75)',
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 18,
-    maxWidth: 380,
+    borderRadius: 14, borderWidth: 1,
+    padding: 18, maxWidth: 400,
     marginVertical: 16,
   },
-  introText:  { color: '#e8e8e8', fontSize: 15, lineHeight: 24, textAlign: 'center' },
-  tapHint:    { fontSize: 14, fontWeight: 'bold', letterSpacing: 1 },
+  introText: { color: '#e8e8e8', fontSize: 14, lineHeight: 22, textAlign: 'center' },
+  tapHint:   { fontSize: 14, fontWeight: 'bold', letterSpacing: 1 },
 
-  // ── Defeat
+  // Defeat
   defeatIcon:  { fontSize: 72 },
   defeatTitle: { color: '#f44336', fontSize: 22, fontWeight: 'bold', textAlign: 'center' },
   defeatSub:   { color: '#aaa', fontSize: 14, textAlign: 'center', lineHeight: 22, maxWidth: 320 },
@@ -539,18 +698,18 @@ const styles = StyleSheet.create({
   },
   defeatBtnText: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
 
-  // ── Stub
-  stubIcon:   { fontSize: 72 },
-  stubTitle:  { fontSize: 24, fontWeight: 'bold' },
-  stubText:   { color: '#aaa', fontSize: 14, textAlign: 'center', maxWidth: 320, lineHeight: 22 },
-  backBtn:    {
+  // Stub
+  stubIcon:    { fontSize: 72 },
+  stubTitle:   { fontSize: 24, fontWeight: 'bold' },
+  stubText:    { color: '#aaa', fontSize: 14, textAlign: 'center', maxWidth: 320, lineHeight: 22 },
+  backBtn:     {
     paddingHorizontal: 24, paddingVertical: 12,
     borderRadius: 10, borderWidth: 2,
     marginTop: 18,
   },
   backBtnText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
 
-  // ── Overlay / card genérico
+  // Modais genéricos
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.85)',
@@ -559,31 +718,34 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   card: {
-    width: '100%',
-    maxWidth: 400,
+    width: '100%', maxWidth: 400,
     backgroundColor: '#0f1628',
-    borderRadius: 14,
-    borderWidth: 2,
+    borderRadius: 14, borderWidth: 2,
     padding: 18,
   },
-  cardTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
+  cardTitle:   { fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
+  cardBody:    { color: '#e8e8e8', fontSize: 14, lineHeight: 22, marginBottom: 14 },
   cardActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    marginTop: 14,
+    flexDirection: 'row', justifyContent: 'flex-end',
+    gap: 10, marginTop: 14,
   },
   cardBtn: {
     paddingHorizontal: 18, paddingVertical: 9,
-    borderRadius: 10,
-    borderWidth: 1.5,
+    borderRadius: 10, borderWidth: 1.5,
     backgroundColor: '#16213e',
     borderColor: '#2a2a4a',
   },
   cardBtnSecondary: { backgroundColor: 'transparent', borderColor: '#666' },
   cardBtnText: { color: '#fff', fontSize: 13, fontWeight: 'bold' },
 
-  // ── Hint
-  hintBody:  { color: '#e8e8e8', fontSize: 14, lineHeight: 22, marginBottom: 12 },
-  hintCost:  { color: '#ffab91', fontSize: 11, textAlign: 'center', marginBottom: 10, fontStyle: 'italic' },
+  unlockBanner: {
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    marginBottom: 12,
+  },
+  unlockBannerLabel: { fontSize: 11, fontWeight: 'bold', letterSpacing: 1, marginBottom: 6 },
+
+  hintCount: { color: '#c8a96e', fontSize: 11, textAlign: 'center', marginBottom: 10, fontStyle: 'italic' },
 });
