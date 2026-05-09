@@ -134,7 +134,7 @@ function ExamSection({ simulado, onComplete }) {
             fontSize={16}
             color="#e8e8e8"
             furiganaColor="#90caf9"
-            style={{ justifyContent: 'flex-start' }}
+            align="left"
           />
         </View>
       </Animated.View>
@@ -178,10 +178,15 @@ function ExamSection({ simulado, onComplete }) {
 // ─── SimuladoScreen ────────────────────────────────────────────────────────
 export default function SimuladoScreen({ navigation, route }) {
   const level = route.params?.level;
-  const simulado = level ? getSimuladoByLevel(level) : null;
   const levels = getSimuladoLevels();
 
   const [selectedLevel, setSelectedLevel] = useState(level || null);
+
+  // Deve rodar em todo render — nunca depois de um return condicional (regras dos Hooks).
+  const sim = useMemo(
+    () => (selectedLevel ? getRandomizedSimulado(selectedLevel) : null),
+    [selectedLevel],
+  );
 
   if (levels.length === 0) {
     return (
@@ -205,7 +210,6 @@ export default function SimuladoScreen({ navigation, route }) {
     );
   }
 
-  const sim = useMemo(() => getRandomizedSimulado(selectedLevel), [selectedLevel]);
   if (!sim) {
     return (
       <SafeAreaView style={styles.container}>
