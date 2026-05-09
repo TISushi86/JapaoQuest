@@ -90,7 +90,7 @@ export const ROOMS = [
       // ═════════════════════════════════════════════════════════════════════
       {
         id: 'hs-lareira',
-        emoji: '🕯',
+        emoji: '🪵',
         label: '{囲炉裏|いろり}',
         labelPt: 'Lareira',
         x: 0.50, y: 0.59,
