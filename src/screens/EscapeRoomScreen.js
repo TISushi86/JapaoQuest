@@ -7,7 +7,7 @@ import {
 import { getRoomById } from '../data/escapeRooms';
 import { usePlayer } from '../context/PlayerContext';
 import FuriganaText from '../components/FuriganaText';
-import Hotspot from '../components/Hotspot';
+import Hotspot, { ToriiMark, isToriiEmoji } from '../components/Hotspot';
 import InventoryBar from '../components/InventoryBar';
 import PuzzleModal from '../components/PuzzleModal';
 import MemoryReveal from '../components/MemoryReveal';
@@ -534,9 +534,18 @@ export default function EscapeRoomScreen({ navigation, route }) {
       >
         <View style={styles.overlay}>
           <View style={[styles.card, { borderColor: accent }]}>
-            <Text style={[styles.cardTitle, { color: accent }]}>
-              {activeHotspot?.emoji}  {activeHotspot?.labelPt}
-            </Text>
+            {activeHotspot && isToriiEmoji(activeHotspot.emoji) ? (
+              <View style={styles.hotspotModalTitleRow}>
+                <ToriiMark color="#c92a2a" size={24} />
+                <Text style={[styles.cardTitle, { color: accent, marginBottom: 0, flex: 1 }]} numberOfLines={2}>
+                  {activeHotspot.labelPt}
+                </Text>
+              </View>
+            ) : (
+              <Text style={[styles.cardTitle, { color: accent }]}>
+                {activeHotspot?.emoji}  {activeHotspot?.labelPt}
+              </Text>
+            )}
             <ScrollView style={{ maxHeight: 260, marginBottom: 14 }}>
               <FuriganaText
                 text={activeHotspot?.initialMessage || 'Você examina o objeto, mas nada acontece.'}
@@ -565,9 +574,18 @@ export default function EscapeRoomScreen({ navigation, route }) {
       >
         <View style={styles.overlay}>
           <View style={[styles.card, { borderColor: accent }]}>
-            <Text style={[styles.cardTitle, { color: accent }]}>
-              {activeHotspot?.emoji}  {activeHotspot?.labelPt}
-            </Text>
+            {activeHotspot && isToriiEmoji(activeHotspot.emoji) ? (
+              <View style={styles.hotspotModalTitleRow}>
+                <ToriiMark color="#c92a2a" size={24} />
+                <Text style={[styles.cardTitle, { color: accent, marginBottom: 0, flex: 1 }]} numberOfLines={2}>
+                  {activeHotspot.labelPt}
+                </Text>
+              </View>
+            ) : (
+              <Text style={[styles.cardTitle, { color: accent }]}>
+                {activeHotspot?.emoji}  {activeHotspot?.labelPt}
+              </Text>
+            )}
             <ScrollView style={{ maxHeight: 280 }}>
               {activeHotspot?._justUnlocked && activeHotspot?.useItemSuccess ? (
                 <View style={[styles.unlockBanner, { borderColor: accent + '55' }]}>
@@ -816,6 +834,12 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   cardTitle:   { fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
+  hotspotModalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
   cardBody:    { color: '#e8e8e8', fontSize: 14, lineHeight: 22, marginBottom: 14 },
   cardActions: {
     flexDirection: 'row', justifyContent: 'flex-end',

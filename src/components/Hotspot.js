@@ -2,6 +2,39 @@ import React, { useEffect, useRef } from 'react';
 import { Text, StyleSheet, TouchableOpacity, Animated, View } from 'react-native';
 import FuriganaText from './FuriganaText';
 
+/** Emojis de torii (⛩ / ⛩️) costumam sair pretos no Web — desenho vermelho consistente. */
+export function isToriiEmoji(str) {
+  if (!str) return false;
+  return String(str).replace(/\uFE0F/g, '').trim() === '⛩';
+}
+
+/**
+ * Torii vermelho estilizado (silhueta simples: lintel duplo + pilares).
+ */
+export function ToriiMark({ color = '#c92a2a', size = 30 }) {
+  const s = size;
+  const postW = Math.max(3.5, s * 0.15);
+  const postH = s * 0.5;
+  return (
+    <View style={{ width: s, height: s * 0.92, alignItems: 'center' }}>
+      <View style={{ width: s * 0.9, height: s * 0.1, backgroundColor: color, borderRadius: 2 }} />
+      <View style={{ width: s * 0.52, height: s * 0.08, backgroundColor: color, borderRadius: 2, marginTop: s * 0.03 }} />
+      <View
+        style={{
+          flexDirection: 'row',
+          width: s * 0.68,
+          justifyContent: 'space-between',
+          marginTop: s * 0.04,
+          height: postH,
+        }}
+      >
+        <View style={{ width: postW, height: postH, backgroundColor: color, borderRadius: 2 }} />
+        <View style={{ width: postW, height: postH, backgroundColor: color, borderRadius: 2 }} />
+      </View>
+    </View>
+  );
+}
+
 /**
  * Hotspot clicável no cenário de uma sala de escape room.
  *
@@ -54,9 +87,13 @@ export default function Hotspot({
           },
         ]}
       >
-        <Text style={styles.emoji}>
-          {hotspot.emoji}
-        </Text>
+        {isToriiEmoji(hotspot.emoji) ? (
+          <View style={styles.emojiToriiWrap}>
+            <ToriiMark color="#c92a2a" size={30} />
+          </View>
+        ) : (
+          <Text style={styles.emoji}>{hotspot.emoji}</Text>
+        )}
       </Animated.View>
 
       <View style={[styles.labelBox, { borderColor: accentColor + '55' }]}>
@@ -91,6 +128,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   emoji: { fontSize: 30 },
+  emojiToriiWrap: {
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   labelBox: {
     marginTop: 4,
     paddingHorizontal: 6,
