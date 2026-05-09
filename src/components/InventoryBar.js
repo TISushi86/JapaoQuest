@@ -3,7 +3,9 @@ import {
   View, Text, StyleSheet, TouchableOpacity, Animated,
 } from 'react-native';
 
-const MAX_SLOTS = 6;
+// Mínimo de slots visíveis. Se a sala der mais itens que isto, o inventário
+// expande automaticamente para nunca esconder um item conquistado.
+const MIN_SLOTS = 8;
 
 /**
  * Barra inferior de inventário.
@@ -25,7 +27,10 @@ export default function InventoryBar({
   items = [], selectedId = null, accentColor = '#ffd700',
   onSelectItem, puzzleCount,
 }) {
-  const slots = Array.from({ length: MAX_SLOTS }, (_, i) => items[i] || null);
+  // Garante que TODOS os itens conquistados sejam exibidos. Slots vazios
+  // completam até o mínimo visual de 8 colunas.
+  const totalSlots = Math.max(MIN_SLOTS, items.length);
+  const slots = Array.from({ length: totalSlots }, (_, i) => items[i] || null);
   const selectedItem = items.find(i => i.id === selectedId) || null;
 
   // Pulso na borda do item selecionado
@@ -134,18 +139,18 @@ const styles = StyleSheet.create({
   slotsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 6,
+    gap: 4,
   },
   slotTouchable: { flex: 1 },
   slot: {
     aspectRatio: 1,
-    borderRadius: 10,
+    borderRadius: 9,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
-  slotEmoji: { fontSize: 22 },
+  slotEmoji: { fontSize: 19 },
   slotEmptyMark: { color: '#444', fontSize: 14 },
 
   selectedBadge: {
