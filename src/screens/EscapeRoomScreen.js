@@ -12,13 +12,14 @@ import InventoryBar from '../components/InventoryBar';
 import PuzzleModal from '../components/PuzzleModal';
 import MemoryReveal from '../components/MemoryReveal';
 import RankUpModal from '../components/RankUpModal';
+import ItemRewardModal from '../components/ItemRewardModal';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const MAX_HP = 3;
 const MAX_HINTS = 3;
-// Altura total rolável da cena. Maior que a viewport → força exploração por
-// scroll, dando sensação de sala ampla que não cabe toda na tela.
-const SCENE_HEIGHT = Math.max(980, SH * 1.5);
+// Altura total rolável da cena. Bem maior que a viewport → força exploração
+// por scroll, dando sensação de sala ampla. 13 hotspots cabem com folga.
+const SCENE_HEIGHT = Math.max(1280, SH * 1.85);
 
 /**
  * Motor da Câmara da Memória (escape room).
@@ -60,6 +61,9 @@ export default function EscapeRoomScreen({ navigation, route }) {
   const [showHint, setShowHint] = useState(false);
   const [hintText, setHintText] = useState('');
   const [rankUpModal, setRankUpModal] = useState(null);
+  // Itens recém-conquistados, exibidos pelo ItemRewardModal antes de retomar
+  // a sala. Enquanto não vazio, o jogador vê uma celebração proeminente.
+  const [wonItems, setWonItems] = useState([]);
 
   if (!room) {
     return (
@@ -203,20 +207,26 @@ export default function EscapeRoomScreen({ navigation, route }) {
     // Marca como resolvido
     setSolved(prev => prev.includes(h.id) ? prev : [...prev, h.id]);
 
-    // Adiciona itens ao inventário
+    // Adiciona itens ao inventário e dispara a celebração
     if (h.rewardItems?.length) {
+      let itemsToAnnounce = [];
       setInventory(prev => {
         const existing = new Set(prev.map(i => i.id));
         const toAdd = h.rewardItems.filter(ri => !existing.has(ri.id));
-        if (toAdd.length) {
-          const names = toAdd.map(i => `${i.emoji} ${i.label}`).join(', ');
-          setTimeout(() => showToast(`Você ganhou: ${names}`, 'win'), 200);
-        }
+        itemsToAnnounce = toAdd;
         return [...prev, ...toAdd];
       });
+      if (itemsToAnnounce.length) {
+        // Pequeno delay para o modal de puzzle terminar a animação de fade.
+        setTimeout(() => setWonItems(itemsToAnnounce), 220);
+      }
     }
 
     setActiveHotspot(null);
+  };
+
+  const dismissWonItems = () => {
+    setWonItems([]);
   };
 
   const handlePuzzleFailed = () => {
@@ -464,7 +474,7 @@ export default function EscapeRoomScreen({ navigation, route }) {
       {/* ── Modal teaser do hotspot ainda bloqueado ───────────────────── */}
       <Modal
         transparent
-        visible={!!activeHotspot && activeHotspot._lockedTeaser && !showPuzzle && !showReveal}
+        visible={!!activeHotspot && activeHotspot._lockedTeaser && !showPuzzle && !showReveal && wonItems.length === 0}
         animationType="fade"
         onRequestClose={() => setActiveHotspot(null)}
       >
@@ -473,9 +483,15 @@ export default function EscapeRoomScreen({ navigation, route }) {
             <Text style={[styles.cardTitle, { color: accent }]}>
               {activeHotspot?.emoji}  {activeHotspot?.labelPt}
             </Text>
-            <Text style={styles.cardBody}>
-              {activeHotspot?.initialMessage || 'Você examina o objeto, mas nada acontece.'}
-            </Text>
+            <ScrollView style={{ maxHeight: 260, marginBottom: 14 }}>
+              <FuriganaText
+                text={activeHotspot?.initialMessage || 'Você examina o objeto, mas nada acontece.'}
+                fontSize={14}
+                color="#e8e8e8"
+                furiganaColor={accent}
+                align="left"
+              />
+            </ScrollView>
             <TouchableOpacity
               style={[styles.cardBtn, { backgroundColor: accent + '22', borderColor: accent, alignSelf: 'center' }]}
               onPress={() => setActiveHotspot(null)}
@@ -489,7 +505,7 @@ export default function EscapeRoomScreen({ navigation, route }) {
       {/* ── Modal de reveals / descoberta ─────────────────────────────── */}
       <Modal
         transparent
-        visible={!!activeHotspot && !activeHotspot._lockedTeaser && !showPuzzle && !showReveal && !!(activeHotspot.reveals || activeHotspot._justUnlocked)}
+        visible={!!activeHotspot && !activeHotspot._lockedTeaser && !showPuzzle && !showReveal && wonItems.length === 0 && !!(activeHotspot.reveals || activeHotspot._justUnlocked)}
         animationType="fade"
         onRequestClose={closeReveal}
       >
@@ -584,6 +600,14 @@ export default function EscapeRoomScreen({ navigation, route }) {
           />
         </Modal>
       ) : null}
+
+      {/* ── Celebração de item conquistado ────────────────────────────── */}
+      <ItemRewardModal
+        visible={wonItems.length > 0}
+        items={wonItems}
+        accentColor={accent}
+        onDismiss={dismissWonItems}
+      />
 
       <RankUpModal
         visible={!!rankUpModal}
