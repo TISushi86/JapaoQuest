@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   Dimensions, StatusBar, ScrollView, Modal, Alert,
@@ -64,6 +64,8 @@ export default function EscapeRoomScreen({ navigation, route }) {
   // Itens recém-conquistados, exibidos pelo ItemRewardModal antes de retomar
   // a sala. Enquanto não vazio, o jogador vê uma celebração proeminente.
   const [wonItems, setWonItems] = useState([]);
+  /** Incrementa a cada dica usada — alterna textos para não repetir sempre a mesma frase. */
+  const hintSequenceRef = useRef(0);
 
   if (!room) {
     return (
@@ -274,25 +276,78 @@ export default function EscapeRoomScreen({ navigation, route }) {
       return;
     }
 
-    // Dicas intencionalmente vagas — apenas alertam sobre item não usado ou
-    // sugerem explorar sem revelar alvo. O jogador deve deduzir sozinho.
-    const unusedItem = inventory.find(item =>
+    hintSequenceRef.current += 1;
+    const n = hintSequenceRef.current;
+
+    const pick = (arr) => arr[n % arr.length];
+
+    const unusedItems = inventory.filter(item =>
       room.hotspots.some(h =>
-        !solved.includes(h.id) && !unlocked.includes(h.id) && itemMatches(h, item.id)
+        !solved.includes(h.id) && !unlocked.includes(h.id) && itemMatches(h, item.id),
       ),
     );
+
+    /** Hotspot com vários itens obrigatórios, jogador ainda não tem todos. */
+    const multiItemBlocked = room.hotspots.find((h) => {
+      if (!h.useItem || h.ambientOnly || solved.includes(h.id) || unlocked.includes(h.id)) return false;
+      const need = Array.isArray(h.useItem) ? h.useItem : [];
+      if (need.length < 2) return false;
+      const hasAll = need.every(id => inventory.some(i => i.id === id));
+      if (hasAll) return false;
+      return need.some(id => inventory.some(i => i.id === id));
+    });
+
+    const freeHotspots = room.hotspots.filter(h =>
+      !solved.includes(h.id) && !h.useItem && !h.ambientOnly,
+    );
+
+    const lockedNeedItems = room.hotspots.filter(h =>
+      !solved.includes(h.id) && h.useItem && !unlocked.includes(h.id) && !h.ambientOnly,
+    );
+
     let text;
-    if (unusedItem) {
-      text = `Você já tem o "${unusedItem.label}" (${unusedItem.emoji}) há um tempo. Cada item tem um lugar certo — tente-o em objetos que ainda não cederam a nada.`;
+
+    if (unusedItems.length > 0) {
+      const it = unusedItems[n % unusedItems.length];
+      const templates = [
+        `${it.emoji} "${it.label}" — Eimei sente que isso ainda não encontrou o lugar onde ressoa.`,
+        `Algo no bolso pesa: ${it.emoji} ${it.label}. Onde será que o ar da sala muda quando você se aproxima?`,
+        `Você carrega ${it.emoji} ${it.label}. Nem todo canto merece esse toque — mas um deles espera.`,
+        `${it.emoji} ${it.label}: "Objetos lembram de mãos certas", murmura Eimei, sem apontar o dedo.`,
+        `A névoa fina se agita perto de ${it.emoji} ${it.label}. Talvez um gesto seu complete o que está incompleto.`,
+        `${it.label} (${it.emoji}) — escolha um ponto do cenário e ofereça-o com calma; o erro não castiga a curiosidade.`,
+      ];
+      text = pick(templates);
+    } else if (multiItemBlocked) {
+      text = pick([
+        'Alguns lugares exigem mais de um sinal antes de abrir. Reúna o que falta antes de insistir.',
+        'Eimei vê duas pegadas diferentes convergindo para o mesmo vazio. O que ainda não chegou junto?',
+        'Um altar, uma mesa, uma porta — às vezes a chave não é uma só peça, e sim um encontro.',
+        'Há um vazio que só se enche quando duas lembranças tocam o mesmo chão. Volte ao que já ganhou.',
+      ]);
+    } else if (freeHotspots.length > 0) {
+      text = pick([
+        'Há objetos que se abrem só com os olhos e o dedo — nada do bolso. Role a tela e procure o que ainda não falou.',
+        'Eimei: "A primeira palavra costuma estar onde ninguém precisa de chave."',
+        'Um canto da sala ainda não ouviu seu toque. Leia antes de carregar — leitura também abre portas invisíveis.',
+        'Às vezes o caminho começa numa prateleira tombada ou num texto solto. Explore sem selecionar item.',
+        'O silêncio mais alto é o que ainda não foi tocado. Há enigmas que pedem só atenção, não ferramenta.',
+      ]);
+    } else if (lockedNeedItems.length > 0 && inventory.length === 0) {
+      text = pick([
+        'Seu bolso está vazio demais. Resolva o que a sala oferece de graça antes de sonhar com trancas.',
+        'Primeiro vem a letra, depois a ferramenta. Procure onde ainda não há cadeado — só texto ou escolha.',
+        'Eimei: "Nada se encaixa onde ainda não há nada para encaixar." Volte aos objetos abertos.',
+      ]);
     } else {
-      const freeCount = room.hotspots.filter(h =>
-        !solved.includes(h.id) && !h.useItem && !h.ambientOnly
-      ).length;
-      if (freeCount > 0) {
-        text = 'Há objetos aqui que se abrem sem precisar de nada do seu bolso. Olhe com cuidado — às vezes é só ler.';
-      } else {
-        text = 'Objetos decorativos não inventam caminhos. Releia os que você destrancou — alguns guardam palavras que despertam memórias.';
-      }
+      text = pick([
+        'Objetos decorativos não inventam caminhos — mas ensinam kanji. Releia o que já destravou; a memória gosta de eco.',
+        'Se nada reage, talvez falte reler uma pista antiga ou subir/descer na cena. A resposta já passou por você.',
+        'Eimei fecha os olhos: "Volte ao fogo, ao papel, às direções... a ordem na cabeça importa mais que a ordem na mão."',
+        'A névoa esconde o óbvio: abra de novo os textos dos lugares já resolvidos — um deles guarda a ponte.',
+        'Quando o inventário parece inútil, o próximo passo é gramática ou direção, não força bruta.',
+        'Role devagar. O que parece cenário às vezes só está esperando o item certo — que ainda virá.',
+      ]);
     }
 
     setHintText(text);
@@ -372,12 +427,6 @@ export default function EscapeRoomScreen({ navigation, route }) {
   //  Render: sala interativa
   // ══════════════════════════════════════════════════════════════════════════
 
-  const solvedCount = solved.filter(id => {
-    const h = room.hotspots.find(x => x.id === id);
-    return h && !h.isExit && !h.ambientOnly;
-  }).length;
-  const totalPuzzles = room.hotspots.filter(h => !h.isExit && !h.ambientOnly).length;
-
   return (
     <View style={styles.container}>
       <StatusBar hidden />
@@ -396,7 +445,7 @@ export default function EscapeRoomScreen({ navigation, route }) {
             <Text style={[styles.hudTitle, { color: accent }]} numberOfLines={1}>
               {room.title}
             </Text>
-            <Text style={styles.hudSub}>JLPT {room.jlptLevel} · {solvedCount}/{totalPuzzles}</Text>
+            <Text style={styles.hudSub}>JLPT {room.jlptLevel}</Text>
           </View>
         </View>
         <View style={styles.hudRight}>
@@ -473,7 +522,6 @@ export default function EscapeRoomScreen({ navigation, route }) {
         items={inventory}
         selectedId={selectedId}
         accentColor={accent}
-        puzzleCount={`${solvedCount}/${totalPuzzles}`}
         onSelectItem={(id) => setSelectedId(id)}
       />
 

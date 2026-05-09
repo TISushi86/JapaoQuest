@@ -21,11 +21,10 @@ const MIN_SLOTS = 8;
  *   selectedId   – id do item atualmente selecionado (ou null)
  *   accentColor  – cor de destaque da sala
  *   onSelectItem – callback(id) quando jogador toca num item
- *   puzzleCount  – "resolvidos/total"
  */
 export default function InventoryBar({
   items = [], selectedId = null, accentColor = '#ffd700',
-  onSelectItem, puzzleCount,
+  onSelectItem,
 }) {
   // Garante que TODOS os itens conquistados sejam exibidos. Slots vazios
   // completam até o mínimo visual de 8 colunas.
@@ -66,9 +65,6 @@ export default function InventoryBar({
             🎒  Toque num item para usá-lo nos objetos da sala.
           </Text>
         )}
-        {puzzleCount ? (
-          <Text style={[styles.counter, { color: accentColor }]}>{puzzleCount}</Text>
-        ) : null}
       </View>
 
       {/* Slots de inventário */}
@@ -134,7 +130,6 @@ const styles = StyleSheet.create({
   headerBold:  { fontWeight: 'bold' },
   headerHint:  { color: '#a0a0a0', fontSize: 11, fontStyle: 'italic' },
   headerTextIdle: { flex: 1, color: '#9a9080', fontSize: 12, fontStyle: 'italic' },
-  counter: { fontSize: 12, fontWeight: 'bold', marginLeft: 8 },
 
   slotsRow: {
     flexDirection: 'row',
