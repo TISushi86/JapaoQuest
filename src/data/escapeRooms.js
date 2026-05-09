@@ -149,7 +149,9 @@ export const ROOMS = [
       // ═════════════════════════════════════════════════════════════════════
       {
         id: 'hs-mesa',
-        emoji: '🪑',
+        // 🪑 é cadeira no Unicode; não há emoji oficial de "mesa". 🍽️ evoca
+        // mesa posta (garfo/faca/prato). O marcador do hotspot é só emoji.
+        emoji: '🍽️',
         label: '{机|つくえ}',
         labelPt: 'Mesa',
         x: 0.20, y: 0.40,
