@@ -17,23 +17,30 @@ import FuriganaText from './FuriganaText';
  *   onDismiss    – callback ao fechar
  */
 export default function ItemRewardModal({ visible, items = [], accentColor = '#ffd700', onDismiss }) {
-  const scaleAnim  = useRef(new Animated.Value(0.6)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
+  // Inicializamos scale em 1 e sparkle em 0.85 (valor "estático" visualmente
+  // bom). Assim, mesmo que a animação não execute (ex.: certos cenários do
+  // React Native Web ou navegadores que ignoram useNativeDriver), o card
+  // ainda aparece visível e legível em vez de ficar invisível.
+  const scaleAnim   = useRef(new Animated.Value(1)).current;
   const sparkleAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (!visible) return undefined;
-    scaleAnim.setValue(0.6);
-    opacityAnim.setValue(0);
+    // Pulso de entrada: encolhe e expande de volta. useNativeDriver: false
+    // garante que funciona em todas as plataformas (incluindo web).
+    scaleAnim.setValue(0.7);
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: false,
+      tension: 80,
+      friction: 7,
+    }).start();
+
     sparkleAnim.setValue(0);
-
-    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 80, friction: 7 }).start();
-    Animated.timing(opacityAnim, { toValue: 1, duration: 280, useNativeDriver: true }).start();
-
     const sparkleLoop = Animated.loop(
       Animated.sequence([
-        Animated.timing(sparkleAnim, { toValue: 1, duration: 1100, useNativeDriver: true }),
-        Animated.timing(sparkleAnim, { toValue: 0, duration: 1100, useNativeDriver: true }),
+        Animated.timing(sparkleAnim, { toValue: 1, duration: 1100, useNativeDriver: false }),
+        Animated.timing(sparkleAnim, { toValue: 0, duration: 1100, useNativeDriver: false }),
       ]),
     );
     sparkleLoop.start();
@@ -56,7 +63,7 @@ export default function ItemRewardModal({ visible, items = [], accentColor = '#f
         <Animated.View
           style={[
             styles.card,
-            { borderColor: accentColor, transform: [{ scale: scaleAnim }], opacity: opacityAnim },
+            { borderColor: accentColor, transform: [{ scale: scaleAnim }] },
           ]}
         >
           <Animated.Text
@@ -67,8 +74,21 @@ export default function ItemRewardModal({ visible, items = [], accentColor = '#f
           >
             ✨
           </Animated.Text>
-          <Text style={[styles.title, { color: accentColor }]}>Item conquistado!</Text>
-          <Text style={styles.subtitle}>{items.length === 1 ? 'Você obteve:' : 'Você obteve estes itens:'}</Text>
+          <Text style={[styles.title, { color: accentColor }]}>
+            {items.length === 1 ? 'Item conquistado!' : 'Itens conquistados!'}
+          </Text>
+          {items.length === 1 ? (
+            <Text style={styles.subtitle}>
+              Você conquistou {items[0].emoji} <Text style={styles.subtitleBold}>{items[0].label}</Text>
+            </Text>
+          ) : (
+            <Text style={styles.subtitle}>
+              Você conquistou{' '}
+              <Text style={styles.subtitleBold}>
+                {items.map(i => `${i.emoji} ${i.label}`).join(' e ')}
+              </Text>
+            </Text>
+          )}
 
           <View style={styles.list}>
             {items.map(it => (
@@ -120,8 +140,9 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.6, shadowRadius: 14, shadowOffset: { width: 0, height: 4 },
   },
   sparkle:   { fontSize: 38, marginBottom: 4 },
-  title:     { fontSize: 20, fontWeight: 'bold', letterSpacing: 0.5, marginBottom: 4 },
-  subtitle:  { color: '#a8b1c2', fontSize: 13, marginBottom: 14 },
+  title:     { fontSize: 20, fontWeight: 'bold', letterSpacing: 0.5, marginBottom: 4, textAlign: 'center' },
+  subtitle:  { color: '#d8d8d8', fontSize: 14, marginBottom: 14, textAlign: 'center', lineHeight: 22, paddingHorizontal: 6 },
+  subtitleBold: { color: '#fff', fontWeight: 'bold' },
 
   list: { width: '100%', gap: 10, marginBottom: 18 },
   itemCard: {

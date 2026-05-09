@@ -207,18 +207,24 @@ export default function EscapeRoomScreen({ navigation, route }) {
     // Marca como resolvido
     setSolved(prev => prev.includes(h.id) ? prev : [...prev, h.id]);
 
-    // Adiciona itens ao inventário e dispara a celebração
+    // Adiciona itens ao inventário e dispara a celebração.
+    // Importante: calculamos `toAdd` FORA do updater do setState para que
+    // (a) StrictMode não execute o filtro duas vezes e (b) o agendamento do
+    // ItemRewardModal não dependa de mutação dentro do updater.
     if (h.rewardItems?.length) {
-      let itemsToAnnounce = [];
-      setInventory(prev => {
-        const existing = new Set(prev.map(i => i.id));
-        const toAdd = h.rewardItems.filter(ri => !existing.has(ri.id));
-        itemsToAnnounce = toAdd;
-        return [...prev, ...toAdd];
-      });
-      if (itemsToAnnounce.length) {
-        // Pequeno delay para o modal de puzzle terminar a animação de fade.
-        setTimeout(() => setWonItems(itemsToAnnounce), 220);
+      const existingIds = new Set(inventory.map(i => i.id));
+      const toAdd = h.rewardItems.filter(ri => !existingIds.has(ri.id));
+      if (toAdd.length) {
+        setInventory(prev => {
+          const ids = new Set(prev.map(i => i.id));
+          const safeAdd = toAdd.filter(ri => !ids.has(ri.id));
+          return [...prev, ...safeAdd];
+        });
+        // Toast imediato (sempre aparece, redundância visual)
+        const names = toAdd.map(i => `${i.emoji} ${i.label}`).join(', ');
+        showToast(`🎁 Item conquistado: ${names}`, 'win');
+        // Modal proeminente após o fade do PuzzleModal
+        setTimeout(() => setWonItems(toAdd), 240);
       }
     }
 
