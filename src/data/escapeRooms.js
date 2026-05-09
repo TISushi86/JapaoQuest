@@ -145,7 +145,7 @@ export const ROOMS = [
 
       // ═════════════════════════════════════════════════════════════════════
       // 4. MESA — requer 📜 Bilhete
-      //    particleFill. Prêmio: 🔑 Chave dourada
+      //    particleFill. Prêmio: 🧿 Omamori (talismã da família)
       // ═════════════════════════════════════════════════════════════════════
       {
         id: 'hs-mesa',
@@ -180,7 +180,13 @@ export const ROOMS = [
           explanation: 'は tópico · に destinatário · を objeto direto.',
         },
         rewardItems: [
-          { id: 'item-chave-ouro', emoji: '🔑', label: 'Chave dourada', labelJp: '{金|きん}の{鍵|かぎ}', hint: 'Muito valiosa. Para algo muito trancado.' },
+          {
+            id: 'item-omamori',
+            emoji: '🧿',
+            label: 'Omamori da família',
+            labelJp: '{御守|おまもり}',
+            hint: 'Pequeno talismã com o nome do clã. Pertence a um lugar sagrado.',
+          },
         ],
       },
 
@@ -216,11 +222,10 @@ export const ROOMS = [
       },
 
       // ═════════════════════════════════════════════════════════════════════
-      // 6. ALTAR — requer 🗺 Mapa
-      //    kanjiMatch. Prêmio: nenhum item — só fragmento de memória + XP.
-      //    Resolver isto desbloqueia o caminho final mas a porta exige só
-      //    a chave dourada. O altar é a "última prova de leitura" antes da
-      //    fuga.
+      // 6. ALTAR — requer 🗺 Mapa + 🧿 Omamori
+      //    kanjiMatch. Prêmio: 🔑 Chave dourada (último item antes da porta).
+      //    O altar é a prova final de leitura: convergem os dois caminhos
+      //    paralelos do baú (mesa→omamori e janela→mapa).
       // ═════════════════════════════════════════════════════════════════════
       {
         id: 'hs-altar',
@@ -228,12 +233,12 @@ export const ROOMS = [
         label: '{祭壇|さいだん}',
         labelPt: 'Altar',
         x: 0.20, y: 0.72,
-        useItem: 'item-mapa',
+        useItem: ['item-mapa', 'item-omamori'],
         initialMessage:
-          'Um pequeno {祭壇|さいだん} (altar) empoeirado.\n\nPedras lisas, {香|こう} (incenso) apagado e um pergaminho enrolado parecem aguardar algo que ainda não chegou.',
+          'Um pequeno {祭壇|さいだん} (altar) empoeirado.\n\nPedras lisas, {香|こう} (incenso) apagado e um pergaminho enrolado parecem aguardar duas oferendas que ainda não chegaram.',
         wrongItemMessage: 'Nada acontece.',
         useItemSuccess:
-          'Você abre o {地図|ちず} (mapa) sobre o altar.\n\nQuatro lugares estão marcados em kanji — sem leitura. O altar parece exigir que você os reconheça pelas leituras corretas.',
+          'Você pousa o {御守|おまもり} (talismã) sobre as pedras e abre o {地図|ちず} (mapa) ao lado.\n\nQuatro lugares marcados em kanji se iluminam — o altar exige que você os reconheça pelas leituras corretas.',
         puzzle: {
           type: 'kanjiMatch',
           prompt: 'Pareie cada lugar do mapa com sua leitura em hiragana.',
@@ -243,11 +248,17 @@ export const ROOMS = [
             ['川', 'かわ'],
             ['森', 'もり'],
           ],
-          explanation: '{寺|てら} = templo · {山|やま} = montanha · {川|かわ} = rio · {森|もり} = floresta.\nLugares sagrados da rota até sua família.',
+          explanation:
+            '{寺|てら} = templo · {山|やま} = montanha · {川|かわ} = rio · {森|もり} = floresta.\nLugares sagrados da rota até sua família.',
         },
         rewardItems: [
-          // Item simbólico — não destrava nada, mas serve de troféu/colecionável
-          { id: 'item-fragmento', emoji: '💠', label: 'Fragmento de memória', labelJp: '{記憶|きおく}の{欠片|かけら}', hint: 'Um pedaço da sua mente que você recuperou. Não destrava portas, mas aquece o peito.' },
+          {
+            id: 'item-chave-ouro',
+            emoji: '🔑',
+            label: 'Chave dourada',
+            labelJp: '{金|きん}の{鍵|かぎ}',
+            hint: 'Forjada pelos antepassados. Abre a porta que fecha a cabana.',
+          },
         ],
       },
 
